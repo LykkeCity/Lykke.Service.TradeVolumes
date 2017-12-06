@@ -1,0 +1,19 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netcoreapp2.0</TargetFramework>
+    <AssemblyName>Lykke.Service.TradeVolumes.Services</AssemblyName>
+    <RootNamespace>Lykke.Service.TradeVolumes.Services</RootNamespace>
+    <Version>1.0.0</Version>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Lykke.Common" Version="3.0.2" />
+    <PackageReference Include="Lykke.Service.Assets.Client" Version="2.1.0.28" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Lykke.Service.TradeVolumes.Core\Lykke.Service.TradeVolumes.Core.csproj" />
+  </ItemGroup>
+
+</Project>
