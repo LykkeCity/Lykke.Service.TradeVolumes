@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using System.Globalization;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.SwaggerGen;
+using Lykke.Service.TradeVolumes.Core;
 using Lykke.Service.TradeVolumes.Core.Services;
 using Lykke.Service.TradeVolumes.Services;
 using Lykke.Service.TradeVolumes.Models;
@@ -42,8 +43,8 @@ namespace Lykke.Service.TradeVolumes.Controllers
         /// Calculates trade volume of assetId within specified time period.
         /// </summary>
         /// <param name="assetId">Asset Id</param>
-        /// <param name="fromDateStr">Start date in yyyyMMdd string format</param>
-        /// <param name="toDateStr">Finish date in yyyyMMdd string format</param>
+        /// <param name="fromDateStr">Start date in yyyyMMdd string format (Inclusive)</param>
+        /// <param name="toDateStr">Finish date in yyyyMMdd string format (Exclusive)</param>
         [HttpGet("asset/{assetId}/all/{fromDateStr}/{toDateStr}")]
         [SwaggerOperation("GetPeriodClientAssetTradeVolume")]
         [ProducesResponseType(typeof(AssetTradeVolumeResponse), (int)HttpStatusCode.OK)]
@@ -81,8 +82,8 @@ namespace Lykke.Service.TradeVolumes.Controllers
         /// Calculates trade volume of assetPairId within specified time period.
         /// </summary>
         /// <param name="assetPairId">AssetPair Id</param>
-        /// <param name="fromDateStr">Start date in yyyyMMdd string format</param>
-        /// <param name="toDateStr">Finish date in yyyyMMdd string format</param>
+        /// <param name="fromDateStr">Start date in yyyyMMdd string format (Inclusive)</param>
+        /// <param name="toDateStr">Finish date in yyyyMMdd string format (Exclusive)</param>
         [HttpGet("pair/{assetPairId}/all/{fromDateStr}/{toDateStr}")]
         [SwaggerOperation("GetPeriodClientAssetPairTradeVolume")]
         [ProducesResponseType(typeof(AssetPairTradeVolumeResponse), (int)HttpStatusCode.OK)]
@@ -154,8 +155,8 @@ namespace Lykke.Service.TradeVolumes.Controllers
         /// </summary>
         /// <param name="assetId">Asset Id</param>
         /// <param name="clientId">Client Id</param>
-        /// <param name="fromDateStr">Start date in yyyyMMdd string format</param>
-        /// <param name="toDateStr">Finish date in yyyyMMdd string format</param>
+        /// <param name="fromDateStr">Start date in yyyyMMdd string format (Inclusive)</param>
+        /// <param name="toDateStr">Finish date in yyyyMMdd string format (Exclusive)</param>
         [HttpGet("asset/{assetId}/{clientId}/{fromDateStr}/{toDateStr}")]
         [SwaggerOperation("GetPeriodClientAssetTradeVolume")]
         [ProducesResponseType(typeof(AssetTradeVolumeResponse), (int)HttpStatusCode.OK)]
@@ -251,20 +252,29 @@ namespace Lykke.Service.TradeVolumes.Controllers
                     (int)HttpStatusCode.BadRequest,
                     ErrorResponse.Create($"DateStr parameter is mulformed - {_dateFormat} format is expected"));
 
-            (double baseVolume, double quotingVolume) = await _tradeVolumesCalculator.GetPeriodAssetPairVolumeAsync(
-                assetPairId,
-                clientId,
-                date,
-                date);
+            try
+            {
+                (double baseVolume, double quotingVolume) = await _tradeVolumesCalculator.GetPeriodAssetPairVolumeAsync(
+                    assetPairId,
+                    clientId,
+                    date,
+                    date);
 
-            return Ok(
-                new AssetPairTradeVolumeResponse
-                {
-                    AssetPairId = assetPairId,
-                    ClientId = clientId,
-                    BaseVolume = baseVolume,
-                    QuotingVolume = quotingVolume,
-                });
+                return Ok(
+                    new AssetPairTradeVolumeResponse
+                    {
+                        AssetPairId = assetPairId,
+                        ClientId = clientId,
+                        BaseVolume = baseVolume,
+                        QuotingVolume = quotingVolume,
+                    });
+            }
+            catch (UnknownPairException ex)
+            {
+                return StatusCode(
+                    (int)HttpStatusCode.BadRequest,
+                    ErrorResponse.Create(ex.Message));
+            }
         }
 
         /// <summary>
@@ -272,8 +282,8 @@ namespace Lykke.Service.TradeVolumes.Controllers
         /// </summary>
         /// <param name="assetPairId">AssetPair Id</param>
         /// <param name="clientId">Client Id</param>
-        /// <param name="fromDateStr">Start date in yyyyMMdd string format</param>
-        /// <param name="toDateStr">Finish date in yyyyMMdd string format</param>
+        /// <param name="fromDateStr">Start date in yyyyMMdd string format (Inclusive)</param>
+        /// <param name="toDateStr">Finish date in yyyyMMdd string format (Exclusive)</param>
         [HttpGet("pair/{assetPairId}/{clientId}/{fromDateStr}/{toDateStr}")]
         [SwaggerOperation("GetPeriodClientAssetPairTradeVolume")]
         [ProducesResponseType(typeof(AssetPairTradeVolumeResponse), (int)HttpStatusCode.OK)]
@@ -319,20 +329,29 @@ namespace Lykke.Service.TradeVolumes.Controllers
                     (int)HttpStatusCode.BadRequest,
                     ErrorResponse.Create($"FromDateStr must be earlier than toDateStr"));
 
-            (double baseVolume, double quotingVolume) = await _tradeVolumesCalculator.GetPeriodAssetPairVolumeAsync(
-                assetPairId,
-                clientId,
-                fromDate,
-                toDate);
+            try
+            {
+                (double baseVolume, double quotingVolume) = await _tradeVolumesCalculator.GetPeriodAssetPairVolumeAsync(
+                    assetPairId,
+                    clientId,
+                    fromDate,
+                    toDate);
 
-            return Ok(
-                new AssetPairTradeVolumeResponse
-                {
-                    AssetPairId = assetPairId,
-                    ClientId = clientId,
-                    BaseVolume = baseVolume,
-                    QuotingVolume = quotingVolume,
-                });
+                return Ok(
+                    new AssetPairTradeVolumeResponse
+                    {
+                        AssetPairId = assetPairId,
+                        ClientId = clientId,
+                        BaseVolume = baseVolume,
+                        QuotingVolume = quotingVolume,
+                    });
+            }
+            catch (UnknownPairException ex)
+            {
+                return StatusCode(
+                    (int)HttpStatusCode.BadRequest,
+                    ErrorResponse.Create(ex.Message));
+            }
         }
     }
 }

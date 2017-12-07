@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Lykke.Service.Assets.Client;
 using Lykke.Service.Assets.Client.Models;
+using Lykke.Service.TradeVolumes.Core;
 using Lykke.Service.TradeVolumes.Core.Messages;
 using Lykke.Service.TradeVolumes.Core.Services;
 using Lykke.Service.TradeVolumes.Core.Repositories;
@@ -150,7 +151,7 @@ namespace Lykke.Service.TradeVolumes.Services
             }
 
             if (!_pairsDict.ContainsKey(assetPair))
-                throw new ArgumentOutOfRangeException($"Unknown assetPair {assetPair}!");
+                throw new UnknownPairException($"Unknown assetPair {assetPair}!");
 
             return (_pairsDict[assetPair].BaseAssetId, _pairsDict[assetPair].QuotingAssetId);
         }
