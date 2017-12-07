@@ -16,6 +16,7 @@ namespace Lykke.Service.TradeVolumes.Services
         private readonly ITradeVolumesRepository _tradeVolumesRepository;
         private readonly Dictionary<string, AssetPair> _pairsDict;
         private readonly Dictionary<string, Dictionary<string, double>> _allDict = new Dictionary<string, Dictionary<string, double>>();
+
         private DateTime _allClientsDate = DateTime.MinValue;
 
         public const string AllClients = "all";
@@ -37,7 +38,8 @@ namespace Lykke.Service.TradeVolumes.Services
                 item.DateTime,
                 item.UserId,
                 item.Asset,
-                item.OppositeAsset);
+                item.OppositeAsset,
+                AllClients);
 
             await _tradeVolumesRepository.UpdateTradeVolumesAsync(
                 item.DateTime,
@@ -48,36 +50,48 @@ namespace Lykke.Service.TradeVolumes.Services
                 quotingTradeVolume + (item.OppositeVolume.HasValue ? (double)item.OppositeVolume.Value : 0));
 
             if (_allClientsDate.Date != item.DateTime.Date)
+            {
                 _allDict.Clear();
+                _allClientsDate = item.DateTime.Date;
+            }
             if (!_allDict.ContainsKey(item.Asset) || !_allDict.ContainsKey(item.OppositeAsset))
             {
                 (double baseAllTradeVolume, double quotingAllTradeVolume) = await _tradeVolumesRepository.GetClientPairValuesAsync(
                     item.DateTime,
                     AllClients,
                     item.Asset,
-                    item.OppositeAsset);
+                    item.OppositeAsset,
+                    null);
 
-                AddVolume(item.Asset, item.OppositeAsset, baseAllTradeVolume);
-                AddVolume(item.OppositeAsset, item.Asset, quotingAllTradeVolume);
+                AddAllVolume(item.Asset, item.OppositeAsset, baseAllTradeVolume, true);
+                AddAllVolume(item.OppositeAsset, item.Asset, quotingAllTradeVolume, true);
             }
-            AddVolume(item.Asset, item.OppositeAsset, baseTradeVolume);
-            AddVolume(item.OppositeAsset, item.Asset, quotingTradeVolume);
+            double allBase = AddAllVolume(item.Asset, item.OppositeAsset, baseTradeVolume, false);
+            double allQuoting = AddAllVolume(item.OppositeAsset, item.Asset, quotingTradeVolume, false);
+            await _tradeVolumesRepository.UpdateTradeVolumesAsync(
+                item.DateTime,
+                AllClients,
+                item.Asset,
+                allBase,
+                item.OppositeAsset,
+                allQuoting);
         }
 
-        private void AddVolume(string firstAsset, string secondAsset, double volume)
+        private double AddAllVolume(string firstAsset, string secondAsset, double volume, bool replace)
         {
             if (!_allDict.ContainsKey(firstAsset))
             {
                 _allDict.Add(firstAsset, new Dictionary<string, double> { { secondAsset, volume } });
+                return volume;
             }
-            else
+            var dict = _allDict[firstAsset];
+            if (!dict.ContainsKey(secondAsset) || replace)
             {
-                var dict = _allDict[firstAsset];
-                if (!dict.ContainsKey(secondAsset))
-                    dict.Add(secondAsset, volume);
-                else
-                    dict[secondAsset] += volume;
+                dict[secondAsset] = volume;
+                return volume;
             }
+            dict[secondAsset] += volume;
+            return dict[secondAsset];
         }
 
         public async Task<(double, double)> GetPeriodAssetPairVolumeAsync(
@@ -93,13 +107,15 @@ namespace Lykke.Service.TradeVolumes.Services
                 quotingAssetId,
                 clientId,
                 from,
-                to);
+                to,
+                clientId == AllClients ? null : AllClients);
             double quotingVolume = await _tradeVolumesRepository.GetPeriodClientVolumeAsync(
                 quotingAssetId,
                 baseAssetId,
                 clientId,
                 from,
-                to);
+                to,
+                clientId == AllClients ? null : AllClients);
             return (baseVolume, quotingVolume);
         }
 
@@ -115,7 +131,8 @@ namespace Lykke.Service.TradeVolumes.Services
                 null,
                 clientId,
                 from,
-                to);
+                to,
+                clientId == AllClients ? null : AllClients);
         }
 
         private (string,string) GetAssetIds(string assetPair)

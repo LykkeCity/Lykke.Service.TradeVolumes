@@ -17,11 +17,13 @@ namespace Lykke.Service.TradeVolumes.Core.Repositories
             string quotingAssetId,
             string clientId,
             DateTime from,
-            DateTime to);
+            DateTime to,
+            string excludeClientId);
         Task<(double, double)> GetClientPairValuesAsync(
             DateTime date,
             string clientId,
             string baseAssetId,
-            string quotingAssetId);
+            string quotingAssetId,
+            string excludeClientId);
     }
 }
