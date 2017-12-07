@@ -15,6 +15,10 @@ namespace Lykke.Service.TradeVolumes.Services
         private readonly IAssetsService _assetsService;
         private readonly ITradeVolumesRepository _tradeVolumesRepository;
         private readonly Dictionary<string, AssetPair> _pairsDict;
+        private readonly Dictionary<string, Dictionary<string, double>> _allDict = new Dictionary<string, Dictionary<string, double>>();
+        private DateTime _allClientsDate = DateTime.MinValue;
+
+        public const string AllClients = "all";
 
         public TradeVolumesCalculator(
             IAssetsService assetsService,
@@ -42,6 +46,38 @@ namespace Lykke.Service.TradeVolumes.Services
                 baseTradeVolume + (double)item.Volume,
                 item.OppositeAsset,
                 quotingTradeVolume + (item.OppositeVolume.HasValue ? (double)item.OppositeVolume.Value : 0));
+
+            if (_allClientsDate.Date != item.DateTime.Date)
+                _allDict.Clear();
+            if (!_allDict.ContainsKey(item.Asset) || !_allDict.ContainsKey(item.OppositeAsset))
+            {
+                (double baseAllTradeVolume, double quotingAllTradeVolume) = await _tradeVolumesRepository.GetClientPairValuesAsync(
+                    item.DateTime,
+                    AllClients,
+                    item.Asset,
+                    item.OppositeAsset);
+
+                AddVolume(item.Asset, item.OppositeAsset, baseAllTradeVolume);
+                AddVolume(item.OppositeAsset, item.Asset, quotingAllTradeVolume);
+            }
+            AddVolume(item.Asset, item.OppositeAsset, baseTradeVolume);
+            AddVolume(item.OppositeAsset, item.Asset, quotingTradeVolume);
+        }
+
+        private void AddVolume(string firstAsset, string secondAsset, double volume)
+        {
+            if (!_allDict.ContainsKey(firstAsset))
+            {
+                _allDict.Add(firstAsset, new Dictionary<string, double> { { secondAsset, volume } });
+            }
+            else
+            {
+                var dict = _allDict[firstAsset];
+                if (!dict.ContainsKey(secondAsset))
+                    dict.Add(secondAsset, volume);
+                else
+                    dict[secondAsset] += volume;
+            }
         }
 
         public async Task<(double, double)> GetPeriodAssetPairVolumeAsync(
