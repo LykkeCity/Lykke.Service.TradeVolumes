@@ -89,7 +89,7 @@ namespace Lykke.Service.TradeVolumes.Services
                 dict[secondAsset] = volume;
                 return volume;
             }
-            dict[secondAsset] += volume;
+            dict[secondAsset] = dict[secondAsset] + volume;
             return dict[secondAsset];
         }
 
