@@ -25,7 +25,7 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
             _log = log;
         }
 
-        public async Task UpdateTradeVolumesAsync(
+        public async Task UpdateTradeVolumesForBothAssetsAsync(
             DateTime dateTime,
             string clientId,
             string baseAssetId,

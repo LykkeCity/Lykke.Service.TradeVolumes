@@ -35,20 +35,20 @@ namespace Lykke.Service.TradeVolumes.Services
 
         public async Task AddTradeLogItemAsync(TradeLogItem item)
         {
-            (double baseTradeVolume, double quotingTradeVolume) = await _tradeVolumesRepository.GetClientPairValuesAsync(
+            (double tradeVolume, double oppositeTradeVolume) = await _tradeVolumesRepository.GetClientPairValuesAsync(
                 item.DateTime,
                 item.UserId,
                 item.Asset,
                 item.OppositeAsset,
                 AllClients);
 
-            await _tradeVolumesRepository.UpdateTradeVolumesAsync(
+            await _tradeVolumesRepository.UpdateTradeVolumesForBothAssetsAsync(
                 item.DateTime,
                 item.UserId,
                 item.Asset,
-                baseTradeVolume + (double)item.Volume,
+                tradeVolume + (double)item.Volume,
                 item.OppositeAsset,
-                quotingTradeVolume + (item.OppositeVolume.HasValue ? (double)item.OppositeVolume.Value : 0));
+                oppositeTradeVolume + (item.OppositeVolume.HasValue ? (double)item.OppositeVolume.Value : 0));
 
             if (_allClientsDate.Date != item.DateTime.Date)
             {
@@ -57,28 +57,28 @@ namespace Lykke.Service.TradeVolumes.Services
             }
             if (!_allDict.ContainsKey(item.Asset) || !_allDict.ContainsKey(item.OppositeAsset))
             {
-                (double baseAllTradeVolume, double quotingAllTradeVolume) = await _tradeVolumesRepository.GetClientPairValuesAsync(
+                (double allTradeVolume, double oppositeAllTradeVolume) = await _tradeVolumesRepository.GetClientPairValuesAsync(
                     item.DateTime,
                     AllClients,
                     item.Asset,
                     item.OppositeAsset,
                     null);
 
-                AddAllVolume(item.Asset, item.OppositeAsset, baseAllTradeVolume, true);
-                AddAllVolume(item.OppositeAsset, item.Asset, quotingAllTradeVolume, true);
+                UpdateAllVolume(item.Asset, item.OppositeAsset, allTradeVolume, true);
+                UpdateAllVolume(item.OppositeAsset, item.Asset, oppositeAllTradeVolume, true);
             }
-            double allBase = AddAllVolume(item.Asset, item.OppositeAsset, baseTradeVolume, false);
-            double allQuoting = AddAllVolume(item.OppositeAsset, item.Asset, quotingTradeVolume, false);
-            await _tradeVolumesRepository.UpdateTradeVolumesAsync(
+            double allVolume = UpdateAllVolume(item.Asset, item.OppositeAsset, tradeVolume, false);
+            double allOppositeVolume = UpdateAllVolume(item.OppositeAsset, item.Asset, oppositeTradeVolume, false);
+            await _tradeVolumesRepository.UpdateTradeVolumesForBothAssetsAsync(
                 item.DateTime,
                 AllClients,
                 item.Asset,
-                allBase,
+                allVolume,
                 item.OppositeAsset,
-                allQuoting);
+                allOppositeVolume);
         }
 
-        private double AddAllVolume(string firstAsset, string secondAsset, double volume, bool replace)
+        private double UpdateAllVolume(string firstAsset, string secondAsset, double volume, bool replace)
         {
             if (!_allDict.ContainsKey(firstAsset))
             {
