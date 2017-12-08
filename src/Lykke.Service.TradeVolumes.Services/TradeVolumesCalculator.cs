@@ -48,7 +48,7 @@ namespace Lykke.Service.TradeVolumes.Services
                 item.OppositeAsset,
                 oppositeTradeVolume + (item.OppositeVolume.HasValue ? (double)item.OppositeVolume.Value : 0));
 
-            if (_allClientsDate.Date != item.DateTime.Date)
+            if (_allClientsDate.Date != item.DateTime.Date || _allClientsDate.Hour != item.DateTime.Hour)
             {
                 _allDict.Clear();
                 _allClientsDate = item.DateTime.Date;
