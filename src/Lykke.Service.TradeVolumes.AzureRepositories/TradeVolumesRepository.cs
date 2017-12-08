@@ -136,7 +136,7 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
         private INoSQLTableStorage<TradeVolumeEntity> GetStorage(string assetId, DateTime date)
         {
             assetId = assetId.Replace("-", "");
-            string tableName = $"{assetId}on{date.ToString(Constants.DateTimeFormat)}";
+            string tableName = $"Asset{assetId}on{date.ToString(Constants.DateTimeFormat)}";
             return AzureTableStorage<TradeVolumeEntity>.Create(_connectionStringManager, tableName, _log);
         }
 
