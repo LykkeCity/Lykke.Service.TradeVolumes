@@ -6,7 +6,6 @@ using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.SwaggerGen;
 using Lykke.Service.TradeVolumes.Core;
 using Lykke.Service.TradeVolumes.Core.Services;
-using Lykke.Service.TradeVolumes.Services;
 using Lykke.Service.TradeVolumes.Models;
 
 namespace Lykke.Service.TradeVolumes.Controllers
@@ -35,7 +34,7 @@ namespace Lykke.Service.TradeVolumes.Controllers
         {
             return await GetClientAssetTradeVolume(
                 assetId,
-                TradeVolumesCalculator.AllClients,
+                Constants.AllClients,
                 dateStr);
         }
 
@@ -56,7 +55,7 @@ namespace Lykke.Service.TradeVolumes.Controllers
         {
             return await GetPeriodClientAssetTradeVolume(
                 assetId,
-                TradeVolumesCalculator.AllClients,
+                Constants.AllClients,
                 fromDateStr,
                 toDateStr);
         }
@@ -74,7 +73,7 @@ namespace Lykke.Service.TradeVolumes.Controllers
         {
             return await GetClientAssetPairTradeVolume(
                 assetPairId,
-                TradeVolumesCalculator.AllClients,
+                Constants.AllClients,
                 dateStr);
         }
 
@@ -95,7 +94,7 @@ namespace Lykke.Service.TradeVolumes.Controllers
         {
             return await GetPeriodClientAssetPairTradeVolume(
                 assetPairId,
-                TradeVolumesCalculator.AllClients,
+                Constants.AllClients,
                 fromDateStr,
                 toDateStr);
         }

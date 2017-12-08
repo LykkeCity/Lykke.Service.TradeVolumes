@@ -6,6 +6,7 @@ using Common.Log;
 using AzureStorage;
 using AzureStorage.Tables;
 using Lykke.SettingsReader;
+using Lykke.Service.TradeVolumes.Core;
 using Lykke.Service.TradeVolumes.Core.Repositories;
 using Lykke.Service.TradeVolumes.AzureRepositories.Models;
 
@@ -108,7 +109,10 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
             string excludeClientId)
         {
             var storage = GetStorage(baseAssetId, date);
-            string filter = TableQuery.GenerateFilterCondition(_partitionKey, QueryComparisons.Equal, clientId);
+            string filter =
+                clientId == Constants.AllClients
+                ? TableQuery.GenerateFilterCondition(_partitionKey, QueryComparisons.NotEqual, Constants.AllClients)
+                : TableQuery.GenerateFilterCondition(_partitionKey, QueryComparisons.Equal, clientId);
             if (!string.IsNullOrWhiteSpace(quotingAssetId))
             {
                 var rowFilter = TableQuery.GenerateFilterCondition(_rowKey, QueryComparisons.Equal, quotingAssetId);
@@ -116,9 +120,12 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
             }
             var query = new TableQuery<TradeVolumeEntity>().Where(filter);
             var items = await storage.WhereAsync(query);
-            return items
+            double result = items
                 .Where(i => i.PartitionKey != excludeClientId)
                 .Sum(i => i.BaseVolume.HasValue ? i.BaseVolume.Value : 0);
+            return clientId == Constants.AllClients
+                ? result / 2
+                : result;
         }
 
         private INoSQLTableStorage<TradeVolumeEntity> GetStorage(string assetId, DateTime date)
