@@ -13,7 +13,6 @@ namespace Lykke.Service.TradeVolumes.Controllers
     [Route("api/[controller]")]
     public class TradeVolumesController : Controller
     {
-        private const string _dateFormat = "yyyyMMdd";
         private readonly ITradeVolumesCalculator _tradeVolumesCalculator;
 
         public TradeVolumesController(ITradeVolumesCalculator tradeVolumesCalculator)
@@ -25,7 +24,7 @@ namespace Lykke.Service.TradeVolumes.Controllers
         /// Calculates trade volume of assetId on a particular date.
         /// </summary>
         /// <param name="assetId">Asset Id</param>
-        /// <param name="dateStr">Date in yyyyMMdd string format</param>
+        /// <param name="dateStr">DateTime in yyyyMMddHH string format</param>
         [HttpGet("asset/{assetId}/all/{dateStr}")]
         [SwaggerOperation("GetAssetTradeVolume")]
         [ProducesResponseType(typeof(AssetTradeVolumeResponse), (int)HttpStatusCode.OK)]
@@ -42,8 +41,8 @@ namespace Lykke.Service.TradeVolumes.Controllers
         /// Calculates trade volume of assetId within specified time period.
         /// </summary>
         /// <param name="assetId">Asset Id</param>
-        /// <param name="fromDateStr">Start date in yyyyMMdd string format (Inclusive)</param>
-        /// <param name="toDateStr">Finish date in yyyyMMdd string format (Exclusive)</param>
+        /// <param name="fromDateStr">Start DateTime in yyyyMMddHH string format (Inclusive)</param>
+        /// <param name="toDateStr">Finish DateTime in yyyyMMddHH string format (Exclusive)</param>
         [HttpGet("asset/{assetId}/all/{fromDateStr}/{toDateStr}")]
         [SwaggerOperation("GetPeriodClientAssetTradeVolume")]
         [ProducesResponseType(typeof(AssetTradeVolumeResponse), (int)HttpStatusCode.OK)]
@@ -64,7 +63,7 @@ namespace Lykke.Service.TradeVolumes.Controllers
         /// Calculates trade volume of assetPairId on a particular date.
         /// </summary>
         /// <param name="assetPairId">AssetPair Id</param>
-        /// <param name="dateStr">Date in yyyyMMdd string format</param>
+        /// <param name="dateStr">DateTime in yyyyMMddHH string format</param>
         [HttpGet("pair/{assetPairId}/all/{dateStr}")]
         [SwaggerOperation("GetClientAssetPairTradeVolume")]
         [ProducesResponseType(typeof(AssetPairTradeVolumeResponse), (int)HttpStatusCode.OK)]
@@ -81,8 +80,8 @@ namespace Lykke.Service.TradeVolumes.Controllers
         /// Calculates trade volume of assetPairId within specified time period.
         /// </summary>
         /// <param name="assetPairId">AssetPair Id</param>
-        /// <param name="fromDateStr">Start date in yyyyMMdd string format (Inclusive)</param>
-        /// <param name="toDateStr">Finish date in yyyyMMdd string format (Exclusive)</param>
+        /// <param name="fromDateStr">Start DateTime in yyyyMMddHH string format (Inclusive)</param>
+        /// <param name="toDateStr">Finish DateTime in yyyyMMddHH string format (Exclusive)</param>
         [HttpGet("pair/{assetPairId}/all/{fromDateStr}/{toDateStr}")]
         [SwaggerOperation("GetPeriodClientAssetPairTradeVolume")]
         [ProducesResponseType(typeof(AssetPairTradeVolumeResponse), (int)HttpStatusCode.OK)]
@@ -104,7 +103,7 @@ namespace Lykke.Service.TradeVolumes.Controllers
         /// </summary>
         /// <param name="assetId">Asset Id</param>
         /// <param name="clientId">Client Id</param>
-        /// <param name="dateStr">Date in yyyyMMdd string format</param>
+        /// <param name="dateStr">DateTime in yyyyMMddHH string format</param>
         [HttpGet("asset/{assetId}/{clientId}/{dateStr}")]
         [SwaggerOperation("GetClientAssetTradeVolume")]
         [ProducesResponseType(typeof(AssetTradeVolumeResponse), (int)HttpStatusCode.OK)]
@@ -126,13 +125,13 @@ namespace Lykke.Service.TradeVolumes.Controllers
 
             if (!DateTime.TryParseExact(
                 dateStr,
-                _dateFormat,
+                Constants.DateTimeFormat,
                 CultureInfo.InvariantCulture,
                 DateTimeStyles.AssumeUniversal,
                 out DateTime date))
                 return StatusCode(
                     (int)HttpStatusCode.BadRequest,
-                    ErrorResponse.Create($"DateStr parameter is mulformed - {_dateFormat} format is expected"));
+                    ErrorResponse.Create($"DateStr parameter is mulformed - {Constants.DateTimeFormat} format is expected"));
 
             double tradeVolume = await _tradeVolumesCalculator.GetPeriodAssetVolumeAsync(
                 assetId,
@@ -154,8 +153,8 @@ namespace Lykke.Service.TradeVolumes.Controllers
         /// </summary>
         /// <param name="assetId">Asset Id</param>
         /// <param name="clientId">Client Id</param>
-        /// <param name="fromDateStr">Start date in yyyyMMdd string format (Inclusive)</param>
-        /// <param name="toDateStr">Finish date in yyyyMMdd string format (Exclusive)</param>
+        /// <param name="fromDateStr">Start DateTime in yyyyMMddHH string format (Inclusive)</param>
+        /// <param name="toDateStr">Finish DateTime in yyyyMMddHH string format (Exclusive)</param>
         [HttpGet("asset/{assetId}/{clientId}/{fromDateStr}/{toDateStr}")]
         [SwaggerOperation("GetPeriodClientAssetTradeVolume")]
         [ProducesResponseType(typeof(AssetTradeVolumeResponse), (int)HttpStatusCode.OK)]
@@ -178,23 +177,23 @@ namespace Lykke.Service.TradeVolumes.Controllers
 
             if (!DateTime.TryParseExact(
                 fromDateStr,
-                _dateFormat,
+                Constants.DateTimeFormat,
                 CultureInfo.InvariantCulture,
                 DateTimeStyles.AssumeUniversal,
                 out DateTime fromDate))
                 return StatusCode(
                     (int)HttpStatusCode.BadRequest,
-                    ErrorResponse.Create($"FromDateStr parameter is mulformed - {_dateFormat} format is expected"));
+                    ErrorResponse.Create($"FromDateStr parameter is mulformed - {Constants.DateTimeFormat} format is expected"));
 
             if (!DateTime.TryParseExact(
                 toDateStr,
-                _dateFormat,
+                Constants.DateTimeFormat,
                 CultureInfo.InvariantCulture,
                 DateTimeStyles.AssumeUniversal,
                 out DateTime toDate))
                 return StatusCode(
                     (int)HttpStatusCode.BadRequest,
-                    ErrorResponse.Create($"ToDateStr parameter is mulformed - {_dateFormat} format is expected"));
+                    ErrorResponse.Create($"ToDateStr parameter is mulformed - {Constants.DateTimeFormat} format is expected"));
 
             if (fromDate > toDate)
                 return StatusCode(
@@ -221,7 +220,7 @@ namespace Lykke.Service.TradeVolumes.Controllers
         /// </summary>
         /// <param name="assetPairId">AssetPair Id</param>
         /// <param name="clientId">Client Id</param>
-        /// <param name="dateStr">Date in yyyyMMdd string format</param>
+        /// <param name="dateStr">DateTime in yyyyMMddHH string format</param>
         [HttpGet("pair/{assetPairId}/{clientId}/{dateStr}")]
         [SwaggerOperation("GetClientAssetPairTradeVolume")]
         [ProducesResponseType(typeof(AssetPairTradeVolumeResponse), (int)HttpStatusCode.OK)]
@@ -243,13 +242,13 @@ namespace Lykke.Service.TradeVolumes.Controllers
 
             if (!DateTime.TryParseExact(
                 dateStr,
-                _dateFormat,
+                Constants.DateTimeFormat,
                 CultureInfo.InvariantCulture,
                 DateTimeStyles.AssumeUniversal,
                 out DateTime date))
                 return StatusCode(
                     (int)HttpStatusCode.BadRequest,
-                    ErrorResponse.Create($"DateStr parameter is mulformed - {_dateFormat} format is expected"));
+                    ErrorResponse.Create($"DateStr parameter is mulformed - {Constants.DateTimeFormat} format is expected"));
 
             try
             {
@@ -281,8 +280,8 @@ namespace Lykke.Service.TradeVolumes.Controllers
         /// </summary>
         /// <param name="assetPairId">AssetPair Id</param>
         /// <param name="clientId">Client Id</param>
-        /// <param name="fromDateStr">Start date in yyyyMMdd string format (Inclusive)</param>
-        /// <param name="toDateStr">Finish date in yyyyMMdd string format (Exclusive)</param>
+        /// <param name="fromDateStr">Start DateTime in yyyyMMddHH string format (Inclusive)</param>
+        /// <param name="toDateStr">Finish DateTime in yyyyMMddHH string format (Exclusive)</param>
         [HttpGet("pair/{assetPairId}/{clientId}/{fromDateStr}/{toDateStr}")]
         [SwaggerOperation("GetPeriodClientAssetPairTradeVolume")]
         [ProducesResponseType(typeof(AssetPairTradeVolumeResponse), (int)HttpStatusCode.OK)]
@@ -305,23 +304,23 @@ namespace Lykke.Service.TradeVolumes.Controllers
 
             if (!DateTime.TryParseExact(
                 fromDateStr,
-                _dateFormat,
+                Constants.DateTimeFormat,
                 CultureInfo.InvariantCulture,
                 DateTimeStyles.AssumeUniversal,
                 out DateTime fromDate))
                 return StatusCode(
                     (int)HttpStatusCode.BadRequest,
-                    ErrorResponse.Create($"FromDateStr parameter is mulformed - {_dateFormat} format is expected"));
+                    ErrorResponse.Create($"FromDateStr parameter is mulformed - {Constants.DateTimeFormat} format is expected"));
 
             if (!DateTime.TryParseExact(
                 toDateStr,
-                _dateFormat,
+                Constants.DateTimeFormat,
                 CultureInfo.InvariantCulture,
                 DateTimeStyles.AssumeUniversal,
                 out DateTime toDate))
                 return StatusCode(
                     (int)HttpStatusCode.BadRequest,
-                    ErrorResponse.Create($"ToDateStr parameter is mulformed - {_dateFormat} format is expected"));
+                    ErrorResponse.Create($"ToDateStr parameter is mulformed - {Constants.DateTimeFormat} format is expected"));
 
             if (fromDate > toDate)
                 return StatusCode(

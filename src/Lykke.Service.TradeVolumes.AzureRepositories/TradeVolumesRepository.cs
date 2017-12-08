@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Table;
 using Common.Log;
 using AzureStorage;
@@ -19,11 +20,13 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
 
         private readonly IReloadingManager<string> _connectionStringManager;
         private readonly ILog _log;
+        private readonly CloudTableClient _tableClient;
 
         public TradeVolumesRepository(IReloadingManager<string> connectionStringManager, ILog log)
         {
             _connectionStringManager = connectionStringManager;
             _log = log;
+            _tableClient = CloudStorageAccount.Parse(connectionStringManager.CurrentValue).CreateCloudTableClient();
         }
 
         public async Task UpdateTradeVolumesForBothAssetsAsync(
@@ -64,7 +67,7 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
             string excludeClientId)
         {
             double result = 0;
-            for (DateTime start = from.Date; start < to.Date; start = start.AddDays(1))
+            for (DateTime start = from.Date; start < to; start = start.AddHours(1))
             {
                 double tradeVolume =  await GetTradeVolumeAsync(
                     start,
@@ -108,7 +111,9 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
             string quotingAssetId,
             string excludeClientId)
         {
-            var storage = GetStorage(baseAssetId, date);
+            var storage = await GetStorageAsync(baseAssetId, date);
+            if (storage == null)
+                return 0;
             string filter =
                 clientId == Constants.AllClients
                 ? TableQuery.GenerateFilterCondition(_partitionKey, QueryComparisons.NotEqual, Constants.AllClients)
@@ -131,7 +136,18 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
         private INoSQLTableStorage<TradeVolumeEntity> GetStorage(string assetId, DateTime date)
         {
             assetId = assetId.Replace("-", "");
-            string tableName = $"{assetId}on{date.ToString("yyyyMMdd")}";
+            string tableName = $"{assetId}on{date.ToString(Constants.DateTimeFormat)}";
+            return AzureTableStorage<TradeVolumeEntity>.Create(_connectionStringManager, tableName, _log);
+        }
+
+        private async Task<INoSQLTableStorage<TradeVolumeEntity>> GetStorageAsync(string assetId, DateTime date)
+        {
+            assetId = assetId.Replace("-", "");
+            string tableName = $"{assetId}on{date.ToString(Constants.DateTimeFormat)}";
+            var tableRef = _tableClient.GetTableReference(tableName);
+            bool tableExists = await tableRef.ExistsAsync();
+            if (!tableExists)
+                return null;
             return AzureTableStorage<TradeVolumeEntity>.Create(_connectionStringManager, tableName, _log);
         }
     }
