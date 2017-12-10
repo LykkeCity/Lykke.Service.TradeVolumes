@@ -21,6 +21,7 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
         private readonly IReloadingManager<string> _connectionStringManager;
         private readonly ILog _log;
         private readonly CloudTableClient _tableClient;
+        private readonly TimeSpan _timeout = TimeSpan.FromMinutes(5);
 
         public TradeVolumesRepository(IReloadingManager<string> connectionStringManager, ILog log)
         {
@@ -125,9 +126,9 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
             }
             var query = new TableQuery<TradeVolumeEntity>().Where(filter);
             var items = await storage.WhereAsync(query);
-            double result = items
-                .Where(i => i.PartitionKey != excludeClientId)
-                .Sum(i => i.BaseVolume.HasValue ? i.BaseVolume.Value : 0);
+            if (clientId != excludeClientId && excludeClientId != null)
+                items = items.Where(i => i.PartitionKey != excludeClientId);
+            double result = items.Sum(i => i.BaseVolume.HasValue ? i.BaseVolume.Value : 0);
             return clientId == Constants.AllClients
                 ? result / 2
                 : result;
@@ -136,7 +137,7 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
         private INoSQLTableStorage<TradeVolumeEntity> GetStorage(string assetId, DateTime date)
         {
             string tableName = GetTableName(assetId, date);
-            return AzureTableStorage<TradeVolumeEntity>.Create(_connectionStringManager, tableName, _log);
+            return AzureTableStorage<TradeVolumeEntity>.Create(_connectionStringManager, tableName, _log, _timeout);
         }
 
         private async Task<INoSQLTableStorage<TradeVolumeEntity>> GetStorageAsync(string assetId, DateTime date)
@@ -146,7 +147,7 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
             bool tableExists = await tableRef.ExistsAsync();
             if (!tableExists)
                 return null;
-            return AzureTableStorage<TradeVolumeEntity>.Create(_connectionStringManager, tableName, _log);
+            return AzureTableStorage<TradeVolumeEntity>.Create(_connectionStringManager, tableName, _log, _timeout);
         }
 
         private static string GetTableName(string assetId, DateTime date)
