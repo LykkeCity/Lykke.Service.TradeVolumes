@@ -40,14 +40,6 @@ namespace Lykke.Service.TradeVolumes.Services
                 item.OppositeAsset,
                 Constants.AllClients);
 
-            await _tradeVolumesRepository.UpdateTradeVolumesForBothAssetsAsync(
-                item.DateTime,
-                item.UserId,
-                item.Asset,
-                tradeVolume + (double)item.Volume,
-                item.OppositeAsset,
-                oppositeTradeVolume + (item.OppositeVolume.HasValue ? (double)item.OppositeVolume.Value : 0));
-
             if (_allClientsDate.Date != item.DateTime.Date || _allClientsDate.Hour != item.DateTime.Hour)
             {
                 _allDict.Clear();
@@ -65,6 +57,17 @@ namespace Lykke.Service.TradeVolumes.Services
                 UpdateAllVolume(item.Asset, item.OppositeAsset, allTradeVolume, true);
                 UpdateAllVolume(item.OppositeAsset, item.Asset, oppositeAllTradeVolume, true);
             }
+
+            tradeVolume = tradeVolume + (double)item.Volume;
+            oppositeTradeVolume = oppositeTradeVolume + (item.OppositeVolume.HasValue ? (double)item.OppositeVolume.Value : 0);
+            await _tradeVolumesRepository.UpdateTradeVolumesForBothAssetsAsync(
+                item.DateTime,
+                item.UserId,
+                item.Asset,
+                tradeVolume,
+                item.OppositeAsset,
+                oppositeTradeVolume);
+
             double allVolume = UpdateAllVolume(item.Asset, item.OppositeAsset, tradeVolume, false);
             double allOppositeVolume = UpdateAllVolume(item.OppositeAsset, item.Asset, oppositeTradeVolume, false);
             await _tradeVolumesRepository.UpdateTradeVolumesForBothAssetsAsync(
