@@ -135,20 +135,25 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
 
         private INoSQLTableStorage<TradeVolumeEntity> GetStorage(string assetId, DateTime date)
         {
-            assetId = assetId.Replace("-", "");
-            string tableName = $"Asset{assetId}on{date.ToString(Constants.DateTimeFormat)}";
+            string tableName = GetTableName(assetId, date);
             return AzureTableStorage<TradeVolumeEntity>.Create(_connectionStringManager, tableName, _log);
         }
 
         private async Task<INoSQLTableStorage<TradeVolumeEntity>> GetStorageAsync(string assetId, DateTime date)
         {
-            assetId = assetId.Replace("-", "");
-            string tableName = $"{assetId}on{date.ToString(Constants.DateTimeFormat)}";
+            string tableName = GetTableName(assetId, date);
             var tableRef = _tableClient.GetTableReference(tableName);
             bool tableExists = await tableRef.ExistsAsync();
             if (!tableExists)
                 return null;
             return AzureTableStorage<TradeVolumeEntity>.Create(_connectionStringManager, tableName, _log);
+        }
+
+        private static string GetTableName(string assetId, DateTime date)
+        {
+            assetId = assetId.Replace("-", "");
+            string tableName = $"{assetId}on{date.ToString(Constants.DateTimeFormat)}";
+            return tableName;
         }
     }
 }
