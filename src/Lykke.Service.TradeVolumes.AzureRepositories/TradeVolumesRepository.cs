@@ -152,7 +152,7 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
         private static string GetTableName(string assetId, DateTime date)
         {
             assetId = assetId.Replace("-", "");
-            string tableName = $"{assetId}on{date.ToString(Constants.DateTimeFormat)}";
+            string tableName = $"Asset{assetId}on{date.ToString(Constants.DateTimeFormat)}";
             return tableName;
         }
     }
