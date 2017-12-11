@@ -50,16 +50,6 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
                 dateTime);
             var baseStorage = GetStorage(baseAssetId, dateTime);
             await baseStorage.InsertOrMergeAsync(baseEntity);
-
-            var quotingEntity = TradeVolumeEntity.Create(
-                clientId,
-                quotingAssetId,
-                quotingVolume,
-                baseAssetId,
-                baseVolume,
-                dateTime);
-            var quotingStorage = GetStorage(quotingAssetId, dateTime);
-            await quotingStorage.InsertOrMergeAsync(quotingEntity);
         }
 
         public async Task<double> GetPeriodClientVolumeAsync(

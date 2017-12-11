@@ -38,7 +38,6 @@ namespace Lykke.Service.TradeVolumes.Services
                 Constants.AllClients);
 
             tradeVolume += (double)item.Volume;
-            oppositeTradeVolume += item.OppositeVolume.HasValue ? (double)item.OppositeVolume.Value : 0;
             await _tradeVolumesRepository.UpdateTradeVolumesForBothAssetsAsync(
                 item.DateTime,
                 item.UserId,
