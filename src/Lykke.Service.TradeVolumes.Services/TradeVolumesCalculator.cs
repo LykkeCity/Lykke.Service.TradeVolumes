@@ -2,6 +2,7 @@
 using System.Linq;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Common.Log;
 using Lykke.Service.Assets.Client;
 using Lykke.Service.Assets.Client.Models;
 using Lykke.Service.TradeVolumes.Core;
@@ -15,15 +16,17 @@ namespace Lykke.Service.TradeVolumes.Services
     {
         private readonly IAssetsService _assetsService;
         private readonly ITradeVolumesRepository _tradeVolumesRepository;
+        private readonly ILog _log;
         private readonly Dictionary<string, AssetPair> _pairsDict;
 
         public TradeVolumesCalculator(
             IAssetsService assetsService,
-            ITradeVolumesRepository tradeVolumesRepository)
+            ITradeVolumesRepository tradeVolumesRepository,
+            ILog log)
         {
             _assetsService = assetsService;
             _tradeVolumesRepository = tradeVolumesRepository;
-
+            _log = log;
             var pairs = _assetsService.AssetPairGetAllAsync().Result;
             _pairsDict = pairs.ToDictionary(i => i.Id, i => i);
         }

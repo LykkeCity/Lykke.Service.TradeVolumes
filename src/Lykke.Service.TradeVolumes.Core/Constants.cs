@@ -3,7 +3,7 @@
     public static class Constants
     {
         public const string AllClients = "all";
-
+        public const string AllAssets = "all";
         public const string DateTimeFormat = "yyyyMMddHH";
     }
 }

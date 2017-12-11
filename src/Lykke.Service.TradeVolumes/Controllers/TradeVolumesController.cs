@@ -116,6 +116,9 @@ namespace Lykke.Service.TradeVolumes.Controllers
                     (int)HttpStatusCode.BadRequest,
                     ErrorResponse.Create($"FromDateStr must be earlier than toDateStr"));
 
+            fromDate = DateTime.SpecifyKind(fromDate, DateTimeKind.Utc);
+            toDate = DateTime.SpecifyKind(toDate, DateTimeKind.Utc);
+
             double tradeVolume = await _tradeVolumesCalculator.GetPeriodAssetVolumeAsync(
                 assetId,
                 clientId,
@@ -182,6 +185,9 @@ namespace Lykke.Service.TradeVolumes.Controllers
                 return StatusCode(
                     (int)HttpStatusCode.BadRequest,
                     ErrorResponse.Create($"FromDateStr must be earlier than toDateStr"));
+
+            fromDate = DateTime.SpecifyKind(fromDate, DateTimeKind.Utc);
+            toDate = DateTime.SpecifyKind(toDate, DateTimeKind.Utc);
 
             try
             {
