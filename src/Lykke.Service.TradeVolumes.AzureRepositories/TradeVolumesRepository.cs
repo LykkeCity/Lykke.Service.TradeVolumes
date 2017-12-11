@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Linq;
+using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Table;
@@ -22,6 +24,7 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
         private readonly ILog _log;
         private readonly CloudTableClient _tableClient;
         private readonly TimeSpan _timeout = TimeSpan.FromMinutes(5);
+        private readonly SemaphoreSlim _lock = new SemaphoreSlim(1, 1);
 
         public TradeVolumesRepository(IReloadingManager<string> connectionStringManager, ILog log)
         {
@@ -67,17 +70,21 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
             DateTime to,
             string excludeClientId)
         {
-            double result = 0;
+            var tradeVolumes = new List<double>();
+            var dates = new List<DateTime>();
             for (DateTime start = from.Date; start < to; start = start.AddHours(1))
             {
-                double tradeVolume =  await GetTradeVolumeAsync(
-                    start,
+                dates.Add(start);
+            }
+            await Task.WhenAll(dates.Select(d =>
+                AddTradeVolumeAsync(
+                    d,
                     clientId,
                     baseAssetId,
                     quotingAssetId,
-                    excludeClientId);
-                result += tradeVolume;
-            }
+                    excludeClientId,
+                    tradeVolumes)));
+            double result = tradeVolumes.Sum();
             return result;
         }
 
@@ -103,6 +110,33 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
                 excludeClientId);
 
             return (baseTradeVolume, quotingTradeVolume);
+        }
+
+        private async Task AddTradeVolumeAsync(
+            DateTime date,
+            string clientId,
+            string baseAssetId,
+            string quotingAssetId,
+            string excludeClientId,
+            List<double> tradeVolumes)
+        {
+            double tradeVolume = await GetTradeVolumeAsync(
+                date,
+                clientId,
+                baseAssetId,
+                quotingAssetId,
+                excludeClientId);
+            if (tradeVolume == 0)
+                return;
+            await _lock.WaitAsync();
+            try
+            {
+                tradeVolumes.Add(tradeVolume);
+            }
+            finally
+            {
+                _lock.Release();
+            }
         }
 
         private async Task<double> GetTradeVolumeAsync(
