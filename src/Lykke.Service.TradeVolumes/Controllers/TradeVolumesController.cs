@@ -21,23 +21,6 @@ namespace Lykke.Service.TradeVolumes.Controllers
         }
 
         /// <summary>
-        /// Calculates trade volume of assetId on a particular date.
-        /// </summary>
-        /// <param name="assetId">Asset Id</param>
-        /// <param name="dateStr">DateTime in yyyyMMddHH string format</param>
-        [HttpGet("asset/{assetId}/all/{dateStr}")]
-        [SwaggerOperation("GetAssetTradeVolume")]
-        [ProducesResponseType(typeof(AssetTradeVolumeResponse), (int)HttpStatusCode.OK)]
-        [ProducesResponseType(typeof(ErrorResponse), (int)HttpStatusCode.BadRequest)]
-        public async Task<IActionResult> GetAssetTradeVolume(string assetId, string dateStr)
-        {
-            return await GetClientAssetTradeVolume(
-                assetId,
-                Constants.AllClients,
-                dateStr);
-        }
-
-        /// <summary>
         /// Calculates trade volume of assetId within specified time period.
         /// </summary>
         /// <param name="assetId">Asset Id</param>
@@ -60,23 +43,6 @@ namespace Lykke.Service.TradeVolumes.Controllers
         }
 
         /// <summary>
-        /// Calculates trade volume of assetPairId on a particular date.
-        /// </summary>
-        /// <param name="assetPairId">AssetPair Id</param>
-        /// <param name="dateStr">DateTime in yyyyMMddHH string format</param>
-        [HttpGet("pair/{assetPairId}/all/{dateStr}")]
-        [SwaggerOperation("GetClientAssetPairTradeVolume")]
-        [ProducesResponseType(typeof(AssetPairTradeVolumeResponse), (int)HttpStatusCode.OK)]
-        [ProducesResponseType(typeof(ErrorResponse), (int)HttpStatusCode.BadRequest)]
-        public async Task<IActionResult> GetAssetPairTradeVolume(string assetPairId, string dateStr)
-        {
-            return await GetClientAssetPairTradeVolume(
-                assetPairId,
-                Constants.AllClients,
-                dateStr);
-        }
-
-        /// <summary>
         /// Calculates trade volume of assetPairId within specified time period.
         /// </summary>
         /// <param name="assetPairId">AssetPair Id</param>
@@ -96,56 +62,6 @@ namespace Lykke.Service.TradeVolumes.Controllers
                 Constants.AllClients,
                 fromDateStr,
                 toDateStr);
-        }
-
-        /// <summary>
-        /// Calculates trade volume of assetId for clientId on a particular date.
-        /// </summary>
-        /// <param name="assetId">Asset Id</param>
-        /// <param name="clientId">Client Id</param>
-        /// <param name="dateStr">DateTime in yyyyMMddHH string format</param>
-        [HttpGet("asset/{assetId}/{clientId}/{dateStr}")]
-        [SwaggerOperation("GetClientAssetTradeVolume")]
-        [ProducesResponseType(typeof(AssetTradeVolumeResponse), (int)HttpStatusCode.OK)]
-        [ProducesResponseType(typeof(ErrorResponse), (int)HttpStatusCode.BadRequest)]
-        public async Task<IActionResult> GetClientAssetTradeVolume(
-            string assetId,
-            string clientId,
-            string dateStr)
-        {
-            if (string.IsNullOrWhiteSpace(assetId))
-                return StatusCode(
-                    (int)HttpStatusCode.BadRequest,
-                    ErrorResponse.Create("AssetId parameter is empty"));
-
-            if (string.IsNullOrWhiteSpace(clientId))
-                return StatusCode(
-                    (int)HttpStatusCode.BadRequest,
-                    ErrorResponse.Create("ClientId parameter is empty"));
-
-            if (!DateTime.TryParseExact(
-                dateStr,
-                Constants.DateTimeFormat,
-                CultureInfo.InvariantCulture,
-                DateTimeStyles.AssumeUniversal,
-                out DateTime date))
-                return StatusCode(
-                    (int)HttpStatusCode.BadRequest,
-                    ErrorResponse.Create($"DateStr parameter is mulformed - {Constants.DateTimeFormat} format is expected"));
-
-            double tradeVolume = await _tradeVolumesCalculator.GetPeriodAssetVolumeAsync(
-                assetId,
-                clientId,
-                date,
-                date);
-
-            return Ok(
-                new AssetTradeVolumeResponse
-                {
-                    AssetId = assetId,
-                    ClientId = clientId,
-                    Volume = tradeVolume,
-                });
         }
 
         /// <summary>
@@ -213,66 +129,6 @@ namespace Lykke.Service.TradeVolumes.Controllers
                     ClientId = clientId,
                     Volume = tradeVolume,
                 });
-        }
-
-        /// <summary>
-        /// Calculates trade volume of assetPairId for clientId on a particular date.
-        /// </summary>
-        /// <param name="assetPairId">AssetPair Id</param>
-        /// <param name="clientId">Client Id</param>
-        /// <param name="dateStr">DateTime in yyyyMMddHH string format</param>
-        [HttpGet("pair/{assetPairId}/{clientId}/{dateStr}")]
-        [SwaggerOperation("GetClientAssetPairTradeVolume")]
-        [ProducesResponseType(typeof(AssetPairTradeVolumeResponse), (int)HttpStatusCode.OK)]
-        [ProducesResponseType(typeof(ErrorResponse), (int)HttpStatusCode.BadRequest)]
-        public async Task<IActionResult> GetClientAssetPairTradeVolume(
-            string assetPairId,
-            string clientId,
-            string dateStr)
-        {
-            if (string.IsNullOrWhiteSpace(assetPairId))
-                return StatusCode(
-                    (int)HttpStatusCode.BadRequest,
-                    ErrorResponse.Create("AssetPairId parameter is empty"));
-
-            if (string.IsNullOrWhiteSpace(clientId))
-                return StatusCode(
-                    (int)HttpStatusCode.BadRequest,
-                    ErrorResponse.Create("ClientId parameter is empty"));
-
-            if (!DateTime.TryParseExact(
-                dateStr,
-                Constants.DateTimeFormat,
-                CultureInfo.InvariantCulture,
-                DateTimeStyles.AssumeUniversal,
-                out DateTime date))
-                return StatusCode(
-                    (int)HttpStatusCode.BadRequest,
-                    ErrorResponse.Create($"DateStr parameter is mulformed - {Constants.DateTimeFormat} format is expected"));
-
-            try
-            {
-                (double baseVolume, double quotingVolume) = await _tradeVolumesCalculator.GetPeriodAssetPairVolumeAsync(
-                    assetPairId,
-                    clientId,
-                    date,
-                    date);
-
-                return Ok(
-                    new AssetPairTradeVolumeResponse
-                    {
-                        AssetPairId = assetPairId,
-                        ClientId = clientId,
-                        BaseVolume = baseVolume,
-                        QuotingVolume = quotingVolume,
-                    });
-            }
-            catch (UnknownPairException ex)
-            {
-                return StatusCode(
-                    (int)HttpStatusCode.BadRequest,
-                    ErrorResponse.Create(ex.Message));
-            }
         }
 
         /// <summary>
