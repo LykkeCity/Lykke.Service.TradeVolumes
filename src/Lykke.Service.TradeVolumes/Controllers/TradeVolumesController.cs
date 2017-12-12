@@ -111,7 +111,7 @@ namespace Lykke.Service.TradeVolumes.Controllers
                     (int)HttpStatusCode.BadRequest,
                     ErrorResponse.Create($"ToDateStr parameter is mulformed - {Constants.DateTimeFormat} format is expected"));
 
-            if (fromDate > toDate)
+            if (fromDate >= toDate)
                 return StatusCode(
                     (int)HttpStatusCode.BadRequest,
                     ErrorResponse.Create($"FromDateStr must be earlier than toDateStr"));
@@ -181,7 +181,7 @@ namespace Lykke.Service.TradeVolumes.Controllers
                     (int)HttpStatusCode.BadRequest,
                     ErrorResponse.Create($"ToDateStr parameter is mulformed - {Constants.DateTimeFormat} format is expected"));
 
-            if (fromDate > toDate)
+            if (fromDate >= toDate)
                 return StatusCode(
                     (int)HttpStatusCode.BadRequest,
                     ErrorResponse.Create($"FromDateStr must be earlier than toDateStr"));

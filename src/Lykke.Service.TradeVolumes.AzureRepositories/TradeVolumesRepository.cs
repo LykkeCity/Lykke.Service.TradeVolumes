@@ -45,10 +45,10 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
             string quotingAssetId,
             double? quotingVolume)
         {
-            if (dateTime.Date.Subtract(_cacheDate).TotalHours > 1)
+            if (dateTime.Subtract(_cacheDate).TotalHours > 1)
             {
                 _storagesCache.Clear();
-                _cacheDate = dateTime.Date;
+                _cacheDate = dateTime;
             }
 
             var baseEntity = TradeVolumeEntity.Create(
@@ -73,13 +73,13 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
             var tradeVolumes = new List<double>();
             var months = new List<DateTime>();
             var existingTables = new HashSet<string>();
-            for (DateTime start = from.Date; start < to; start = start.AddMonths(1))
+            for (DateTime start = from; start < to; start = start.AddMonths(1))
             {
                 months.Add(start);
                 await AddExistingTableNamesAsync(baseAssetId, start, existingTables);
             }
             var dates = new List<DateTime>();
-            for (DateTime start = from.Date; start < to; start = start.AddHours(1))
+            for (DateTime start = from; start < to; start = start.AddHours(1))
             {
                 var tableName = GetTableName(baseAssetId, start);
                 if (existingTables.Contains(tableName))
