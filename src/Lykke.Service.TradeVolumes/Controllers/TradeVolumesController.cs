@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Net;
 using System.Threading.Tasks;
-using System.Globalization;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.SwaggerGen;
 using Lykke.Service.TradeVolumes.Core;
@@ -24,44 +23,42 @@ namespace Lykke.Service.TradeVolumes.Controllers
         /// Calculates trade volume of assetId within specified time period.
         /// </summary>
         /// <param name="assetId">Asset Id</param>
-        /// <param name="fromDateStr">Start DateTime in yyyyMMddHH string format (Inclusive)</param>
-        /// <param name="toDateStr">Finish DateTime in yyyyMMddHH string format (Exclusive)</param>
-        [HttpGet("asset/{assetId}/all/{fromDateStr}/{toDateStr}")]
-        [SwaggerOperation("GetPeriodClientAssetTradeVolume")]
+        /// <param name="fromDate">Start DateTime (Inclusive)</param>
+        /// <param name="toDate">Finish DateTime (Exclusive)</param>
+        [HttpGet("asset/{assetId}/all/{fromDate}/{toDate}")]
+        [SwaggerOperation("GetPeriodAssetTradeVolume")]
         [ProducesResponseType(typeof(AssetTradeVolumeResponse), (int)HttpStatusCode.OK)]
-        [ProducesResponseType(typeof(ErrorResponse), (int)HttpStatusCode.BadRequest)]
         public async Task<IActionResult> GetPeriodAssetTradeVolume(
             string assetId,
-            string fromDateStr,
-            string toDateStr)
+            DateTime fromDate,
+            DateTime toDate)
         {
             return await GetPeriodClientAssetTradeVolume(
                 assetId,
                 Constants.AllClients,
-                fromDateStr,
-                toDateStr);
+                fromDate,
+                toDate);
         }
 
         /// <summary>
         /// Calculates trade volume of assetPairId within specified time period.
         /// </summary>
         /// <param name="assetPairId">AssetPair Id</param>
-        /// <param name="fromDateStr">Start DateTime in yyyyMMddHH string format (Inclusive)</param>
-        /// <param name="toDateStr">Finish DateTime in yyyyMMddHH string format (Exclusive)</param>
-        [HttpGet("pair/{assetPairId}/all/{fromDateStr}/{toDateStr}")]
-        [SwaggerOperation("GetPeriodClientAssetPairTradeVolume")]
+        /// <param name="fromDate">Start DateTime (Inclusive)</param>
+        /// <param name="toDate">Finish DateTime (Exclusive)</param>
+        [HttpGet("pair/{assetPairId}/all/{fromDate}/{toDate}")]
+        [SwaggerOperation("GetPeriodAssetPairTradeVolume")]
         [ProducesResponseType(typeof(AssetPairTradeVolumeResponse), (int)HttpStatusCode.OK)]
-        [ProducesResponseType(typeof(ErrorResponse), (int)HttpStatusCode.BadRequest)]
         public async Task<IActionResult> GetPeriodAssetPairTradeVolume(
             string assetPairId,
-            string fromDateStr,
-            string toDateStr)
+            DateTime fromDate,
+            DateTime toDate)
         {
             return await GetPeriodClientAssetPairTradeVolume(
                 assetPairId,
                 Constants.AllClients,
-                fromDateStr,
-                toDateStr);
+                fromDate,
+                toDate);
         }
 
         /// <summary>
@@ -69,17 +66,16 @@ namespace Lykke.Service.TradeVolumes.Controllers
         /// </summary>
         /// <param name="assetId">Asset Id</param>
         /// <param name="clientId">Client Id</param>
-        /// <param name="fromDateStr">Start DateTime in yyyyMMddHH string format (Inclusive)</param>
-        /// <param name="toDateStr">Finish DateTime in yyyyMMddHH string format (Exclusive)</param>
-        [HttpGet("asset/{assetId}/{clientId}/{fromDateStr}/{toDateStr}")]
+        /// <param name="fromDate">Start DateTime (Inclusive)</param>
+        /// <param name="toDate">Finish DateTime (Exclusive)</param>
+        [HttpGet("asset/{assetId}/{clientId}/{fromDate}/{toDate}")]
         [SwaggerOperation("GetPeriodClientAssetTradeVolume")]
         [ProducesResponseType(typeof(AssetTradeVolumeResponse), (int)HttpStatusCode.OK)]
-        [ProducesResponseType(typeof(ErrorResponse), (int)HttpStatusCode.BadRequest)]
         public async Task<IActionResult> GetPeriodClientAssetTradeVolume(
             string assetId,
             string clientId,
-            string fromDateStr,
-            string toDateStr)
+            DateTime fromDate,
+            DateTime toDate)
         {
             if (string.IsNullOrWhiteSpace(assetId))
                 return StatusCode(
@@ -91,33 +87,15 @@ namespace Lykke.Service.TradeVolumes.Controllers
                     (int)HttpStatusCode.BadRequest,
                     ErrorResponse.Create("ClientId parameter is empty"));
 
-            if (!DateTime.TryParseExact(
-                fromDateStr,
-                Constants.DateTimeFormat,
-                CultureInfo.InvariantCulture,
-                DateTimeStyles.AssumeUniversal,
-                out DateTime fromDate))
-                return StatusCode(
-                    (int)HttpStatusCode.BadRequest,
-                    ErrorResponse.Create($"FromDateStr parameter is mulformed - {Constants.DateTimeFormat} format is expected"));
-
-            if (!DateTime.TryParseExact(
-                toDateStr,
-                Constants.DateTimeFormat,
-                CultureInfo.InvariantCulture,
-                DateTimeStyles.AssumeUniversal,
-                out DateTime toDate))
-                return StatusCode(
-                    (int)HttpStatusCode.BadRequest,
-                    ErrorResponse.Create($"ToDateStr parameter is mulformed - {Constants.DateTimeFormat} format is expected"));
-
             if (fromDate >= toDate)
                 return StatusCode(
                     (int)HttpStatusCode.BadRequest,
-                    ErrorResponse.Create($"FromDateStr must be earlier than toDateStr"));
+                    ErrorResponse.Create($"fromDate must be earlier than toDate"));
 
-            fromDate = DateTime.SpecifyKind(fromDate, DateTimeKind.Utc);
-            toDate = DateTime.SpecifyKind(toDate, DateTimeKind.Utc);
+            if (fromDate.Kind == DateTimeKind.Unspecified)
+                fromDate = DateTime.SpecifyKind(fromDate, DateTimeKind.Utc);
+            if (toDate.Kind == DateTimeKind.Unspecified)
+                toDate = DateTime.SpecifyKind(toDate, DateTimeKind.Utc);
 
             double tradeVolume = await _tradeVolumesCalculator.GetPeriodAssetVolumeAsync(
                 assetId,
@@ -139,17 +117,16 @@ namespace Lykke.Service.TradeVolumes.Controllers
         /// </summary>
         /// <param name="assetPairId">AssetPair Id</param>
         /// <param name="clientId">Client Id</param>
-        /// <param name="fromDateStr">Start DateTime in yyyyMMddHH string format (Inclusive)</param>
-        /// <param name="toDateStr">Finish DateTime in yyyyMMddHH string format (Exclusive)</param>
-        [HttpGet("pair/{assetPairId}/{clientId}/{fromDateStr}/{toDateStr}")]
+        /// <param name="fromDate">Start DateTime (Inclusive)</param>
+        /// <param name="toDate">Finish DateTime (Exclusive)</param>
+        [HttpGet("pair/{assetPairId}/{clientId}/{fromDate}/{toDate}")]
         [SwaggerOperation("GetPeriodClientAssetPairTradeVolume")]
         [ProducesResponseType(typeof(AssetPairTradeVolumeResponse), (int)HttpStatusCode.OK)]
-        [ProducesResponseType(typeof(ErrorResponse), (int)HttpStatusCode.BadRequest)]
         public async Task<IActionResult> GetPeriodClientAssetPairTradeVolume(
             string assetPairId,
             string clientId,
-            string fromDateStr,
-            string toDateStr)
+            DateTime fromDate,
+            DateTime toDate)
         {
             if (string.IsNullOrWhiteSpace(assetPairId))
                 return StatusCode(
@@ -161,33 +138,15 @@ namespace Lykke.Service.TradeVolumes.Controllers
                     (int)HttpStatusCode.BadRequest,
                     ErrorResponse.Create("ClientId parameter is empty"));
 
-            if (!DateTime.TryParseExact(
-                fromDateStr,
-                Constants.DateTimeFormat,
-                CultureInfo.InvariantCulture,
-                DateTimeStyles.AssumeUniversal,
-                out DateTime fromDate))
-                return StatusCode(
-                    (int)HttpStatusCode.BadRequest,
-                    ErrorResponse.Create($"FromDateStr parameter is mulformed - {Constants.DateTimeFormat} format is expected"));
-
-            if (!DateTime.TryParseExact(
-                toDateStr,
-                Constants.DateTimeFormat,
-                CultureInfo.InvariantCulture,
-                DateTimeStyles.AssumeUniversal,
-                out DateTime toDate))
-                return StatusCode(
-                    (int)HttpStatusCode.BadRequest,
-                    ErrorResponse.Create($"ToDateStr parameter is mulformed - {Constants.DateTimeFormat} format is expected"));
-
             if (fromDate >= toDate)
                 return StatusCode(
                     (int)HttpStatusCode.BadRequest,
-                    ErrorResponse.Create($"FromDateStr must be earlier than toDateStr"));
+                    ErrorResponse.Create($"fromDate must be earlier than toDate"));
 
-            fromDate = DateTime.SpecifyKind(fromDate, DateTimeKind.Utc);
-            toDate = DateTime.SpecifyKind(toDate, DateTimeKind.Utc);
+            if (fromDate.Kind == DateTimeKind.Unspecified)
+                fromDate = DateTime.SpecifyKind(fromDate, DateTimeKind.Utc);
+            if (toDate.Kind == DateTimeKind.Unspecified)
+                toDate = DateTime.SpecifyKind(toDate, DateTimeKind.Utc);
 
             try
             {

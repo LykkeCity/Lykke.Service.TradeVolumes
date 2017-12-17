@@ -53,15 +53,15 @@ namespace Lykke.Service.TradeVolumes.Client.AutorestClient
             /// <param name='assetId'>
             /// Asset Id
             /// </param>
-            /// <param name='fromDateStr'>
-            /// Start DateTime in yyyyMMddHH string format (Inclusive)
+            /// <param name='fromDate'>
+            /// Start DateTime (Inclusive)
             /// </param>
-            /// <param name='toDateStr'>
-            /// Finish DateTime in yyyyMMddHH string format (Exclusive)
+            /// <param name='toDate'>
+            /// Finish DateTime (Exclusive)
             /// </param>
-            public static object GetPeriodClientAssetTradeVolume(this ITradeVolumesAPI operations, string assetId, string fromDateStr, string toDateStr)
+            public static AssetTradeVolumeResponse GetPeriodAssetTradeVolume(this ITradeVolumesAPI operations, string assetId, System.DateTime fromDate, System.DateTime toDate)
             {
-                return operations.GetPeriodClientAssetTradeVolumeAsync(assetId, fromDateStr, toDateStr).GetAwaiter().GetResult();
+                return operations.GetPeriodAssetTradeVolumeAsync(assetId, fromDate, toDate).GetAwaiter().GetResult();
             }
 
             /// <summary>
@@ -73,18 +73,18 @@ namespace Lykke.Service.TradeVolumes.Client.AutorestClient
             /// <param name='assetId'>
             /// Asset Id
             /// </param>
-            /// <param name='fromDateStr'>
-            /// Start DateTime in yyyyMMddHH string format (Inclusive)
+            /// <param name='fromDate'>
+            /// Start DateTime (Inclusive)
             /// </param>
-            /// <param name='toDateStr'>
-            /// Finish DateTime in yyyyMMddHH string format (Exclusive)
+            /// <param name='toDate'>
+            /// Finish DateTime (Exclusive)
             /// </param>
             /// <param name='cancellationToken'>
             /// The cancellation token.
             /// </param>
-            public static async Task<object> GetPeriodClientAssetTradeVolumeAsync(this ITradeVolumesAPI operations, string assetId, string fromDateStr, string toDateStr, CancellationToken cancellationToken = default(CancellationToken))
+            public static async Task<AssetTradeVolumeResponse> GetPeriodAssetTradeVolumeAsync(this ITradeVolumesAPI operations, string assetId, System.DateTime fromDate, System.DateTime toDate, CancellationToken cancellationToken = default(CancellationToken))
             {
-                using (var _result = await operations.GetPeriodClientAssetTradeVolumeWithHttpMessagesAsync(assetId, fromDateStr, toDateStr, null, cancellationToken).ConfigureAwait(false))
+                using (var _result = await operations.GetPeriodAssetTradeVolumeWithHttpMessagesAsync(assetId, fromDate, toDate, null, cancellationToken).ConfigureAwait(false))
                 {
                     return _result.Body;
                 }
@@ -99,15 +99,15 @@ namespace Lykke.Service.TradeVolumes.Client.AutorestClient
             /// <param name='assetPairId'>
             /// AssetPair Id
             /// </param>
-            /// <param name='fromDateStr'>
-            /// Start DateTime in yyyyMMddHH string format (Inclusive)
+            /// <param name='fromDate'>
+            /// Start DateTime (Inclusive)
             /// </param>
-            /// <param name='toDateStr'>
-            /// Finish DateTime in yyyyMMddHH string format (Exclusive)
+            /// <param name='toDate'>
+            /// Finish DateTime (Exclusive)
             /// </param>
-            public static object GetPeriodClientAssetPairTradeVolume(this ITradeVolumesAPI operations, string assetPairId, string fromDateStr, string toDateStr)
+            public static AssetPairTradeVolumeResponse GetPeriodAssetPairTradeVolume(this ITradeVolumesAPI operations, string assetPairId, System.DateTime fromDate, System.DateTime toDate)
             {
-                return operations.GetPeriodClientAssetPairTradeVolumeAsync(assetPairId, fromDateStr, toDateStr).GetAwaiter().GetResult();
+                return operations.GetPeriodAssetPairTradeVolumeAsync(assetPairId, fromDate, toDate).GetAwaiter().GetResult();
             }
 
             /// <summary>
@@ -119,18 +119,18 @@ namespace Lykke.Service.TradeVolumes.Client.AutorestClient
             /// <param name='assetPairId'>
             /// AssetPair Id
             /// </param>
-            /// <param name='fromDateStr'>
-            /// Start DateTime in yyyyMMddHH string format (Inclusive)
+            /// <param name='fromDate'>
+            /// Start DateTime (Inclusive)
             /// </param>
-            /// <param name='toDateStr'>
-            /// Finish DateTime in yyyyMMddHH string format (Exclusive)
+            /// <param name='toDate'>
+            /// Finish DateTime (Exclusive)
             /// </param>
             /// <param name='cancellationToken'>
             /// The cancellation token.
             /// </param>
-            public static async Task<object> GetPeriodClientAssetPairTradeVolumeAsync(this ITradeVolumesAPI operations, string assetPairId, string fromDateStr, string toDateStr, CancellationToken cancellationToken = default(CancellationToken))
+            public static async Task<AssetPairTradeVolumeResponse> GetPeriodAssetPairTradeVolumeAsync(this ITradeVolumesAPI operations, string assetPairId, System.DateTime fromDate, System.DateTime toDate, CancellationToken cancellationToken = default(CancellationToken))
             {
-                using (var _result = await operations.GetPeriodClientAssetPairTradeVolumeWithHttpMessagesAsync(assetPairId, fromDateStr, toDateStr, null, cancellationToken).ConfigureAwait(false))
+                using (var _result = await operations.GetPeriodAssetPairTradeVolumeWithHttpMessagesAsync(assetPairId, fromDate, toDate, null, cancellationToken).ConfigureAwait(false))
                 {
                     return _result.Body;
                 }
@@ -149,15 +149,15 @@ namespace Lykke.Service.TradeVolumes.Client.AutorestClient
             /// <param name='clientId'>
             /// Client Id
             /// </param>
-            /// <param name='fromDateStr'>
-            /// Start DateTime in yyyyMMddHH string format (Inclusive)
+            /// <param name='fromDate'>
+            /// Start DateTime (Inclusive)
             /// </param>
-            /// <param name='toDateStr'>
-            /// Finish DateTime in yyyyMMddHH string format (Exclusive)
+            /// <param name='toDate'>
+            /// Finish DateTime (Exclusive)
             /// </param>
-            public static object GetPeriodClientAssetTradeVolume1(this ITradeVolumesAPI operations, string assetId, string clientId, string fromDateStr, string toDateStr)
+            public static AssetTradeVolumeResponse GetPeriodClientAssetTradeVolume(this ITradeVolumesAPI operations, string assetId, string clientId, System.DateTime fromDate, System.DateTime toDate)
             {
-                return operations.GetPeriodClientAssetTradeVolume1Async(assetId, clientId, fromDateStr, toDateStr).GetAwaiter().GetResult();
+                return operations.GetPeriodClientAssetTradeVolumeAsync(assetId, clientId, fromDate, toDate).GetAwaiter().GetResult();
             }
 
             /// <summary>
@@ -173,18 +173,18 @@ namespace Lykke.Service.TradeVolumes.Client.AutorestClient
             /// <param name='clientId'>
             /// Client Id
             /// </param>
-            /// <param name='fromDateStr'>
-            /// Start DateTime in yyyyMMddHH string format (Inclusive)
+            /// <param name='fromDate'>
+            /// Start DateTime (Inclusive)
             /// </param>
-            /// <param name='toDateStr'>
-            /// Finish DateTime in yyyyMMddHH string format (Exclusive)
+            /// <param name='toDate'>
+            /// Finish DateTime (Exclusive)
             /// </param>
             /// <param name='cancellationToken'>
             /// The cancellation token.
             /// </param>
-            public static async Task<object> GetPeriodClientAssetTradeVolume1Async(this ITradeVolumesAPI operations, string assetId, string clientId, string fromDateStr, string toDateStr, CancellationToken cancellationToken = default(CancellationToken))
+            public static async Task<AssetTradeVolumeResponse> GetPeriodClientAssetTradeVolumeAsync(this ITradeVolumesAPI operations, string assetId, string clientId, System.DateTime fromDate, System.DateTime toDate, CancellationToken cancellationToken = default(CancellationToken))
             {
-                using (var _result = await operations.GetPeriodClientAssetTradeVolume1WithHttpMessagesAsync(assetId, clientId, fromDateStr, toDateStr, null, cancellationToken).ConfigureAwait(false))
+                using (var _result = await operations.GetPeriodClientAssetTradeVolumeWithHttpMessagesAsync(assetId, clientId, fromDate, toDate, null, cancellationToken).ConfigureAwait(false))
                 {
                     return _result.Body;
                 }
@@ -203,15 +203,15 @@ namespace Lykke.Service.TradeVolumes.Client.AutorestClient
             /// <param name='clientId'>
             /// Client Id
             /// </param>
-            /// <param name='fromDateStr'>
-            /// Start DateTime in yyyyMMddHH string format (Inclusive)
+            /// <param name='fromDate'>
+            /// Start DateTime (Inclusive)
             /// </param>
-            /// <param name='toDateStr'>
-            /// Finish DateTime in yyyyMMddHH string format (Exclusive)
+            /// <param name='toDate'>
+            /// Finish DateTime (Exclusive)
             /// </param>
-            public static object GetPeriodClientAssetPairTradeVolume1(this ITradeVolumesAPI operations, string assetPairId, string clientId, string fromDateStr, string toDateStr)
+            public static AssetPairTradeVolumeResponse GetPeriodClientAssetPairTradeVolume(this ITradeVolumesAPI operations, string assetPairId, string clientId, System.DateTime fromDate, System.DateTime toDate)
             {
-                return operations.GetPeriodClientAssetPairTradeVolume1Async(assetPairId, clientId, fromDateStr, toDateStr).GetAwaiter().GetResult();
+                return operations.GetPeriodClientAssetPairTradeVolumeAsync(assetPairId, clientId, fromDate, toDate).GetAwaiter().GetResult();
             }
 
             /// <summary>
@@ -227,18 +227,18 @@ namespace Lykke.Service.TradeVolumes.Client.AutorestClient
             /// <param name='clientId'>
             /// Client Id
             /// </param>
-            /// <param name='fromDateStr'>
-            /// Start DateTime in yyyyMMddHH string format (Inclusive)
+            /// <param name='fromDate'>
+            /// Start DateTime (Inclusive)
             /// </param>
-            /// <param name='toDateStr'>
-            /// Finish DateTime in yyyyMMddHH string format (Exclusive)
+            /// <param name='toDate'>
+            /// Finish DateTime (Exclusive)
             /// </param>
             /// <param name='cancellationToken'>
             /// The cancellation token.
             /// </param>
-            public static async Task<object> GetPeriodClientAssetPairTradeVolume1Async(this ITradeVolumesAPI operations, string assetPairId, string clientId, string fromDateStr, string toDateStr, CancellationToken cancellationToken = default(CancellationToken))
+            public static async Task<AssetPairTradeVolumeResponse> GetPeriodClientAssetPairTradeVolumeAsync(this ITradeVolumesAPI operations, string assetPairId, string clientId, System.DateTime fromDate, System.DateTime toDate, CancellationToken cancellationToken = default(CancellationToken))
             {
-                using (var _result = await operations.GetPeriodClientAssetPairTradeVolume1WithHttpMessagesAsync(assetPairId, clientId, fromDateStr, toDateStr, null, cancellationToken).ConfigureAwait(false))
+                using (var _result = await operations.GetPeriodClientAssetPairTradeVolumeWithHttpMessagesAsync(assetPairId, clientId, fromDate, toDate, null, cancellationToken).ConfigureAwait(false))
                 {
                     return _result.Body;
                 }

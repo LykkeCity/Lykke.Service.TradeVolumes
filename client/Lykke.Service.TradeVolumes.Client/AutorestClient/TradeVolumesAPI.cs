@@ -286,11 +286,11 @@ namespace Lykke.Service.TradeVolumes.Client.AutorestClient
         /// <param name='assetId'>
         /// Asset Id
         /// </param>
-        /// <param name='fromDateStr'>
-        /// Start DateTime in yyyyMMddHH string format (Inclusive)
+        /// <param name='fromDate'>
+        /// Start DateTime (Inclusive)
         /// </param>
-        /// <param name='toDateStr'>
-        /// Finish DateTime in yyyyMMddHH string format (Exclusive)
+        /// <param name='toDate'>
+        /// Finish DateTime (Exclusive)
         /// </param>
         /// <param name='customHeaders'>
         /// Headers that will be added to request.
@@ -313,19 +313,11 @@ namespace Lykke.Service.TradeVolumes.Client.AutorestClient
         /// <return>
         /// A response object containing the response body and response headers.
         /// </return>
-        public async Task<HttpOperationResponse<object>> GetPeriodClientAssetTradeVolumeWithHttpMessagesAsync(string assetId, string fromDateStr, string toDateStr, Dictionary<string, List<string>> customHeaders = null, CancellationToken cancellationToken = default(CancellationToken))
+        public async Task<HttpOperationResponse<AssetTradeVolumeResponse>> GetPeriodAssetTradeVolumeWithHttpMessagesAsync(string assetId, System.DateTime fromDate, System.DateTime toDate, Dictionary<string, List<string>> customHeaders = null, CancellationToken cancellationToken = default(CancellationToken))
         {
             if (assetId == null)
             {
                 throw new ValidationException(ValidationRules.CannotBeNull, "assetId");
-            }
-            if (fromDateStr == null)
-            {
-                throw new ValidationException(ValidationRules.CannotBeNull, "fromDateStr");
-            }
-            if (toDateStr == null)
-            {
-                throw new ValidationException(ValidationRules.CannotBeNull, "toDateStr");
             }
             // Tracing
             bool _shouldTrace = ServiceClientTracing.IsEnabled;
@@ -335,17 +327,17 @@ namespace Lykke.Service.TradeVolumes.Client.AutorestClient
                 _invocationId = ServiceClientTracing.NextInvocationId.ToString();
                 Dictionary<string, object> tracingParameters = new Dictionary<string, object>();
                 tracingParameters.Add("assetId", assetId);
-                tracingParameters.Add("fromDateStr", fromDateStr);
-                tracingParameters.Add("toDateStr", toDateStr);
+                tracingParameters.Add("fromDate", fromDate);
+                tracingParameters.Add("toDate", toDate);
                 tracingParameters.Add("cancellationToken", cancellationToken);
-                ServiceClientTracing.Enter(_invocationId, this, "GetPeriodClientAssetTradeVolume", tracingParameters);
+                ServiceClientTracing.Enter(_invocationId, this, "GetPeriodAssetTradeVolume", tracingParameters);
             }
             // Construct URL
             var _baseUrl = BaseUri.AbsoluteUri;
-            var _url = new System.Uri(new System.Uri(_baseUrl + (_baseUrl.EndsWith("/") ? "" : "/")), "api/TradeVolumes/asset/{assetId}/all/{fromDateStr}/{toDateStr}").ToString();
+            var _url = new System.Uri(new System.Uri(_baseUrl + (_baseUrl.EndsWith("/") ? "" : "/")), "api/TradeVolumes/asset/{assetId}/all/{fromDate}/{toDate}").ToString();
             _url = _url.Replace("{assetId}", System.Uri.EscapeDataString(assetId));
-            _url = _url.Replace("{fromDateStr}", System.Uri.EscapeDataString(fromDateStr));
-            _url = _url.Replace("{toDateStr}", System.Uri.EscapeDataString(toDateStr));
+            _url = _url.Replace("{fromDate}", System.Uri.EscapeDataString(SafeJsonConvert.SerializeObject(fromDate, SerializationSettings).Trim('"')));
+            _url = _url.Replace("{toDate}", System.Uri.EscapeDataString(SafeJsonConvert.SerializeObject(toDate, SerializationSettings).Trim('"')));
             // Create HTTP transport objects
             var _httpRequest = new HttpRequestMessage();
             HttpResponseMessage _httpResponse = null;
@@ -382,7 +374,7 @@ namespace Lykke.Service.TradeVolumes.Client.AutorestClient
             HttpStatusCode _statusCode = _httpResponse.StatusCode;
             cancellationToken.ThrowIfCancellationRequested();
             string _responseContent = null;
-            if ((int)_statusCode != 200 && (int)_statusCode != 400)
+            if ((int)_statusCode != 200)
             {
                 var ex = new HttpOperationException(string.Format("Operation returned an invalid status code '{0}'", _statusCode));
                 if (_httpResponse.Content != null) {
@@ -405,7 +397,7 @@ namespace Lykke.Service.TradeVolumes.Client.AutorestClient
                 throw ex;
             }
             // Create Result
-            var _result = new HttpOperationResponse<object>();
+            var _result = new HttpOperationResponse<AssetTradeVolumeResponse>();
             _result.Request = _httpRequest;
             _result.Response = _httpResponse;
             // Deserialize Response
@@ -415,24 +407,6 @@ namespace Lykke.Service.TradeVolumes.Client.AutorestClient
                 try
                 {
                     _result.Body = SafeJsonConvert.DeserializeObject<AssetTradeVolumeResponse>(_responseContent, DeserializationSettings);
-                }
-                catch (JsonException ex)
-                {
-                    _httpRequest.Dispose();
-                    if (_httpResponse != null)
-                    {
-                        _httpResponse.Dispose();
-                    }
-                    throw new SerializationException("Unable to deserialize the response.", _responseContent, ex);
-                }
-            }
-            // Deserialize Response
-            if ((int)_statusCode == 400)
-            {
-                _responseContent = await _httpResponse.Content.ReadAsStringAsync().ConfigureAwait(false);
-                try
-                {
-                    _result.Body = SafeJsonConvert.DeserializeObject<ErrorResponse>(_responseContent, DeserializationSettings);
                 }
                 catch (JsonException ex)
                 {
@@ -457,11 +431,11 @@ namespace Lykke.Service.TradeVolumes.Client.AutorestClient
         /// <param name='assetPairId'>
         /// AssetPair Id
         /// </param>
-        /// <param name='fromDateStr'>
-        /// Start DateTime in yyyyMMddHH string format (Inclusive)
+        /// <param name='fromDate'>
+        /// Start DateTime (Inclusive)
         /// </param>
-        /// <param name='toDateStr'>
-        /// Finish DateTime in yyyyMMddHH string format (Exclusive)
+        /// <param name='toDate'>
+        /// Finish DateTime (Exclusive)
         /// </param>
         /// <param name='customHeaders'>
         /// Headers that will be added to request.
@@ -484,19 +458,11 @@ namespace Lykke.Service.TradeVolumes.Client.AutorestClient
         /// <return>
         /// A response object containing the response body and response headers.
         /// </return>
-        public async Task<HttpOperationResponse<object>> GetPeriodClientAssetPairTradeVolumeWithHttpMessagesAsync(string assetPairId, string fromDateStr, string toDateStr, Dictionary<string, List<string>> customHeaders = null, CancellationToken cancellationToken = default(CancellationToken))
+        public async Task<HttpOperationResponse<AssetPairTradeVolumeResponse>> GetPeriodAssetPairTradeVolumeWithHttpMessagesAsync(string assetPairId, System.DateTime fromDate, System.DateTime toDate, Dictionary<string, List<string>> customHeaders = null, CancellationToken cancellationToken = default(CancellationToken))
         {
             if (assetPairId == null)
             {
                 throw new ValidationException(ValidationRules.CannotBeNull, "assetPairId");
-            }
-            if (fromDateStr == null)
-            {
-                throw new ValidationException(ValidationRules.CannotBeNull, "fromDateStr");
-            }
-            if (toDateStr == null)
-            {
-                throw new ValidationException(ValidationRules.CannotBeNull, "toDateStr");
             }
             // Tracing
             bool _shouldTrace = ServiceClientTracing.IsEnabled;
@@ -506,17 +472,17 @@ namespace Lykke.Service.TradeVolumes.Client.AutorestClient
                 _invocationId = ServiceClientTracing.NextInvocationId.ToString();
                 Dictionary<string, object> tracingParameters = new Dictionary<string, object>();
                 tracingParameters.Add("assetPairId", assetPairId);
-                tracingParameters.Add("fromDateStr", fromDateStr);
-                tracingParameters.Add("toDateStr", toDateStr);
+                tracingParameters.Add("fromDate", fromDate);
+                tracingParameters.Add("toDate", toDate);
                 tracingParameters.Add("cancellationToken", cancellationToken);
-                ServiceClientTracing.Enter(_invocationId, this, "GetPeriodClientAssetPairTradeVolume", tracingParameters);
+                ServiceClientTracing.Enter(_invocationId, this, "GetPeriodAssetPairTradeVolume", tracingParameters);
             }
             // Construct URL
             var _baseUrl = BaseUri.AbsoluteUri;
-            var _url = new System.Uri(new System.Uri(_baseUrl + (_baseUrl.EndsWith("/") ? "" : "/")), "api/TradeVolumes/pair/{assetPairId}/all/{fromDateStr}/{toDateStr}").ToString();
+            var _url = new System.Uri(new System.Uri(_baseUrl + (_baseUrl.EndsWith("/") ? "" : "/")), "api/TradeVolumes/pair/{assetPairId}/all/{fromDate}/{toDate}").ToString();
             _url = _url.Replace("{assetPairId}", System.Uri.EscapeDataString(assetPairId));
-            _url = _url.Replace("{fromDateStr}", System.Uri.EscapeDataString(fromDateStr));
-            _url = _url.Replace("{toDateStr}", System.Uri.EscapeDataString(toDateStr));
+            _url = _url.Replace("{fromDate}", System.Uri.EscapeDataString(SafeJsonConvert.SerializeObject(fromDate, SerializationSettings).Trim('"')));
+            _url = _url.Replace("{toDate}", System.Uri.EscapeDataString(SafeJsonConvert.SerializeObject(toDate, SerializationSettings).Trim('"')));
             // Create HTTP transport objects
             var _httpRequest = new HttpRequestMessage();
             HttpResponseMessage _httpResponse = null;
@@ -553,7 +519,7 @@ namespace Lykke.Service.TradeVolumes.Client.AutorestClient
             HttpStatusCode _statusCode = _httpResponse.StatusCode;
             cancellationToken.ThrowIfCancellationRequested();
             string _responseContent = null;
-            if ((int)_statusCode != 200 && (int)_statusCode != 400)
+            if ((int)_statusCode != 200)
             {
                 var ex = new HttpOperationException(string.Format("Operation returned an invalid status code '{0}'", _statusCode));
                 if (_httpResponse.Content != null) {
@@ -576,7 +542,7 @@ namespace Lykke.Service.TradeVolumes.Client.AutorestClient
                 throw ex;
             }
             // Create Result
-            var _result = new HttpOperationResponse<object>();
+            var _result = new HttpOperationResponse<AssetPairTradeVolumeResponse>();
             _result.Request = _httpRequest;
             _result.Response = _httpResponse;
             // Deserialize Response
@@ -586,24 +552,6 @@ namespace Lykke.Service.TradeVolumes.Client.AutorestClient
                 try
                 {
                     _result.Body = SafeJsonConvert.DeserializeObject<AssetPairTradeVolumeResponse>(_responseContent, DeserializationSettings);
-                }
-                catch (JsonException ex)
-                {
-                    _httpRequest.Dispose();
-                    if (_httpResponse != null)
-                    {
-                        _httpResponse.Dispose();
-                    }
-                    throw new SerializationException("Unable to deserialize the response.", _responseContent, ex);
-                }
-            }
-            // Deserialize Response
-            if ((int)_statusCode == 400)
-            {
-                _responseContent = await _httpResponse.Content.ReadAsStringAsync().ConfigureAwait(false);
-                try
-                {
-                    _result.Body = SafeJsonConvert.DeserializeObject<ErrorResponse>(_responseContent, DeserializationSettings);
                 }
                 catch (JsonException ex)
                 {
@@ -632,11 +580,11 @@ namespace Lykke.Service.TradeVolumes.Client.AutorestClient
         /// <param name='clientId'>
         /// Client Id
         /// </param>
-        /// <param name='fromDateStr'>
-        /// Start DateTime in yyyyMMddHH string format (Inclusive)
+        /// <param name='fromDate'>
+        /// Start DateTime (Inclusive)
         /// </param>
-        /// <param name='toDateStr'>
-        /// Finish DateTime in yyyyMMddHH string format (Exclusive)
+        /// <param name='toDate'>
+        /// Finish DateTime (Exclusive)
         /// </param>
         /// <param name='customHeaders'>
         /// Headers that will be added to request.
@@ -659,7 +607,7 @@ namespace Lykke.Service.TradeVolumes.Client.AutorestClient
         /// <return>
         /// A response object containing the response body and response headers.
         /// </return>
-        public async Task<HttpOperationResponse<object>> GetPeriodClientAssetTradeVolume1WithHttpMessagesAsync(string assetId, string clientId, string fromDateStr, string toDateStr, Dictionary<string, List<string>> customHeaders = null, CancellationToken cancellationToken = default(CancellationToken))
+        public async Task<HttpOperationResponse<AssetTradeVolumeResponse>> GetPeriodClientAssetTradeVolumeWithHttpMessagesAsync(string assetId, string clientId, System.DateTime fromDate, System.DateTime toDate, Dictionary<string, List<string>> customHeaders = null, CancellationToken cancellationToken = default(CancellationToken))
         {
             if (assetId == null)
             {
@@ -668,14 +616,6 @@ namespace Lykke.Service.TradeVolumes.Client.AutorestClient
             if (clientId == null)
             {
                 throw new ValidationException(ValidationRules.CannotBeNull, "clientId");
-            }
-            if (fromDateStr == null)
-            {
-                throw new ValidationException(ValidationRules.CannotBeNull, "fromDateStr");
-            }
-            if (toDateStr == null)
-            {
-                throw new ValidationException(ValidationRules.CannotBeNull, "toDateStr");
             }
             // Tracing
             bool _shouldTrace = ServiceClientTracing.IsEnabled;
@@ -686,18 +626,18 @@ namespace Lykke.Service.TradeVolumes.Client.AutorestClient
                 Dictionary<string, object> tracingParameters = new Dictionary<string, object>();
                 tracingParameters.Add("assetId", assetId);
                 tracingParameters.Add("clientId", clientId);
-                tracingParameters.Add("fromDateStr", fromDateStr);
-                tracingParameters.Add("toDateStr", toDateStr);
+                tracingParameters.Add("fromDate", fromDate);
+                tracingParameters.Add("toDate", toDate);
                 tracingParameters.Add("cancellationToken", cancellationToken);
-                ServiceClientTracing.Enter(_invocationId, this, "GetPeriodClientAssetTradeVolume1", tracingParameters);
+                ServiceClientTracing.Enter(_invocationId, this, "GetPeriodClientAssetTradeVolume", tracingParameters);
             }
             // Construct URL
             var _baseUrl = BaseUri.AbsoluteUri;
-            var _url = new System.Uri(new System.Uri(_baseUrl + (_baseUrl.EndsWith("/") ? "" : "/")), "api/TradeVolumes/asset/{assetId}/{clientId}/{fromDateStr}/{toDateStr}").ToString();
+            var _url = new System.Uri(new System.Uri(_baseUrl + (_baseUrl.EndsWith("/") ? "" : "/")), "api/TradeVolumes/asset/{assetId}/{clientId}/{fromDate}/{toDate}").ToString();
             _url = _url.Replace("{assetId}", System.Uri.EscapeDataString(assetId));
             _url = _url.Replace("{clientId}", System.Uri.EscapeDataString(clientId));
-            _url = _url.Replace("{fromDateStr}", System.Uri.EscapeDataString(fromDateStr));
-            _url = _url.Replace("{toDateStr}", System.Uri.EscapeDataString(toDateStr));
+            _url = _url.Replace("{fromDate}", System.Uri.EscapeDataString(SafeJsonConvert.SerializeObject(fromDate, SerializationSettings).Trim('"')));
+            _url = _url.Replace("{toDate}", System.Uri.EscapeDataString(SafeJsonConvert.SerializeObject(toDate, SerializationSettings).Trim('"')));
             // Create HTTP transport objects
             var _httpRequest = new HttpRequestMessage();
             HttpResponseMessage _httpResponse = null;
@@ -734,7 +674,7 @@ namespace Lykke.Service.TradeVolumes.Client.AutorestClient
             HttpStatusCode _statusCode = _httpResponse.StatusCode;
             cancellationToken.ThrowIfCancellationRequested();
             string _responseContent = null;
-            if ((int)_statusCode != 200 && (int)_statusCode != 400)
+            if ((int)_statusCode != 200)
             {
                 var ex = new HttpOperationException(string.Format("Operation returned an invalid status code '{0}'", _statusCode));
                 if (_httpResponse.Content != null) {
@@ -757,7 +697,7 @@ namespace Lykke.Service.TradeVolumes.Client.AutorestClient
                 throw ex;
             }
             // Create Result
-            var _result = new HttpOperationResponse<object>();
+            var _result = new HttpOperationResponse<AssetTradeVolumeResponse>();
             _result.Request = _httpRequest;
             _result.Response = _httpResponse;
             // Deserialize Response
@@ -767,24 +707,6 @@ namespace Lykke.Service.TradeVolumes.Client.AutorestClient
                 try
                 {
                     _result.Body = SafeJsonConvert.DeserializeObject<AssetTradeVolumeResponse>(_responseContent, DeserializationSettings);
-                }
-                catch (JsonException ex)
-                {
-                    _httpRequest.Dispose();
-                    if (_httpResponse != null)
-                    {
-                        _httpResponse.Dispose();
-                    }
-                    throw new SerializationException("Unable to deserialize the response.", _responseContent, ex);
-                }
-            }
-            // Deserialize Response
-            if ((int)_statusCode == 400)
-            {
-                _responseContent = await _httpResponse.Content.ReadAsStringAsync().ConfigureAwait(false);
-                try
-                {
-                    _result.Body = SafeJsonConvert.DeserializeObject<ErrorResponse>(_responseContent, DeserializationSettings);
                 }
                 catch (JsonException ex)
                 {
@@ -813,11 +735,11 @@ namespace Lykke.Service.TradeVolumes.Client.AutorestClient
         /// <param name='clientId'>
         /// Client Id
         /// </param>
-        /// <param name='fromDateStr'>
-        /// Start DateTime in yyyyMMddHH string format (Inclusive)
+        /// <param name='fromDate'>
+        /// Start DateTime (Inclusive)
         /// </param>
-        /// <param name='toDateStr'>
-        /// Finish DateTime in yyyyMMddHH string format (Exclusive)
+        /// <param name='toDate'>
+        /// Finish DateTime (Exclusive)
         /// </param>
         /// <param name='customHeaders'>
         /// Headers that will be added to request.
@@ -840,7 +762,7 @@ namespace Lykke.Service.TradeVolumes.Client.AutorestClient
         /// <return>
         /// A response object containing the response body and response headers.
         /// </return>
-        public async Task<HttpOperationResponse<object>> GetPeriodClientAssetPairTradeVolume1WithHttpMessagesAsync(string assetPairId, string clientId, string fromDateStr, string toDateStr, Dictionary<string, List<string>> customHeaders = null, CancellationToken cancellationToken = default(CancellationToken))
+        public async Task<HttpOperationResponse<AssetPairTradeVolumeResponse>> GetPeriodClientAssetPairTradeVolumeWithHttpMessagesAsync(string assetPairId, string clientId, System.DateTime fromDate, System.DateTime toDate, Dictionary<string, List<string>> customHeaders = null, CancellationToken cancellationToken = default(CancellationToken))
         {
             if (assetPairId == null)
             {
@@ -849,14 +771,6 @@ namespace Lykke.Service.TradeVolumes.Client.AutorestClient
             if (clientId == null)
             {
                 throw new ValidationException(ValidationRules.CannotBeNull, "clientId");
-            }
-            if (fromDateStr == null)
-            {
-                throw new ValidationException(ValidationRules.CannotBeNull, "fromDateStr");
-            }
-            if (toDateStr == null)
-            {
-                throw new ValidationException(ValidationRules.CannotBeNull, "toDateStr");
             }
             // Tracing
             bool _shouldTrace = ServiceClientTracing.IsEnabled;
@@ -867,18 +781,18 @@ namespace Lykke.Service.TradeVolumes.Client.AutorestClient
                 Dictionary<string, object> tracingParameters = new Dictionary<string, object>();
                 tracingParameters.Add("assetPairId", assetPairId);
                 tracingParameters.Add("clientId", clientId);
-                tracingParameters.Add("fromDateStr", fromDateStr);
-                tracingParameters.Add("toDateStr", toDateStr);
+                tracingParameters.Add("fromDate", fromDate);
+                tracingParameters.Add("toDate", toDate);
                 tracingParameters.Add("cancellationToken", cancellationToken);
-                ServiceClientTracing.Enter(_invocationId, this, "GetPeriodClientAssetPairTradeVolume1", tracingParameters);
+                ServiceClientTracing.Enter(_invocationId, this, "GetPeriodClientAssetPairTradeVolume", tracingParameters);
             }
             // Construct URL
             var _baseUrl = BaseUri.AbsoluteUri;
-            var _url = new System.Uri(new System.Uri(_baseUrl + (_baseUrl.EndsWith("/") ? "" : "/")), "api/TradeVolumes/pair/{assetPairId}/{clientId}/{fromDateStr}/{toDateStr}").ToString();
+            var _url = new System.Uri(new System.Uri(_baseUrl + (_baseUrl.EndsWith("/") ? "" : "/")), "api/TradeVolumes/pair/{assetPairId}/{clientId}/{fromDate}/{toDate}").ToString();
             _url = _url.Replace("{assetPairId}", System.Uri.EscapeDataString(assetPairId));
             _url = _url.Replace("{clientId}", System.Uri.EscapeDataString(clientId));
-            _url = _url.Replace("{fromDateStr}", System.Uri.EscapeDataString(fromDateStr));
-            _url = _url.Replace("{toDateStr}", System.Uri.EscapeDataString(toDateStr));
+            _url = _url.Replace("{fromDate}", System.Uri.EscapeDataString(SafeJsonConvert.SerializeObject(fromDate, SerializationSettings).Trim('"')));
+            _url = _url.Replace("{toDate}", System.Uri.EscapeDataString(SafeJsonConvert.SerializeObject(toDate, SerializationSettings).Trim('"')));
             // Create HTTP transport objects
             var _httpRequest = new HttpRequestMessage();
             HttpResponseMessage _httpResponse = null;
@@ -915,7 +829,7 @@ namespace Lykke.Service.TradeVolumes.Client.AutorestClient
             HttpStatusCode _statusCode = _httpResponse.StatusCode;
             cancellationToken.ThrowIfCancellationRequested();
             string _responseContent = null;
-            if ((int)_statusCode != 200 && (int)_statusCode != 400)
+            if ((int)_statusCode != 200)
             {
                 var ex = new HttpOperationException(string.Format("Operation returned an invalid status code '{0}'", _statusCode));
                 if (_httpResponse.Content != null) {
@@ -938,7 +852,7 @@ namespace Lykke.Service.TradeVolumes.Client.AutorestClient
                 throw ex;
             }
             // Create Result
-            var _result = new HttpOperationResponse<object>();
+            var _result = new HttpOperationResponse<AssetPairTradeVolumeResponse>();
             _result.Request = _httpRequest;
             _result.Response = _httpResponse;
             // Deserialize Response
@@ -948,24 +862,6 @@ namespace Lykke.Service.TradeVolumes.Client.AutorestClient
                 try
                 {
                     _result.Body = SafeJsonConvert.DeserializeObject<AssetPairTradeVolumeResponse>(_responseContent, DeserializationSettings);
-                }
-                catch (JsonException ex)
-                {
-                    _httpRequest.Dispose();
-                    if (_httpResponse != null)
-                    {
-                        _httpResponse.Dispose();
-                    }
-                    throw new SerializationException("Unable to deserialize the response.", _responseContent, ex);
-                }
-            }
-            // Deserialize Response
-            if ((int)_statusCode == 400)
-            {
-                _responseContent = await _httpResponse.Content.ReadAsStringAsync().ConfigureAwait(false);
-                try
-                {
-                    _result.Body = SafeJsonConvert.DeserializeObject<ErrorResponse>(_responseContent, DeserializationSettings);
                 }
                 catch (JsonException ex)
                 {
