@@ -221,7 +221,7 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
             return tableName;
         }
 
-        private async Task AddExistingTableNamesAsync(string assetId, DateTime date, HashSet<string> existingTables)
+        private async Task AddExistingTableNamesAsync(string assetId, DateTime date, ICollection<string> existingTables)
         {
             string tablesPrefix = GetTablesPrefix(assetId, date);
             TableContinuationToken token = null;
