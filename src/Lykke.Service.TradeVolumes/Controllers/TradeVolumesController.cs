@@ -28,12 +28,12 @@ namespace Lykke.Service.TradeVolumes.Controllers
         [HttpGet("asset/{assetId}/all/{fromDate}/{toDate}")]
         [SwaggerOperation("GetPeriodAssetTradeVolume")]
         [ProducesResponseType(typeof(AssetTradeVolumeResponse), (int)HttpStatusCode.OK)]
-        public async Task<IActionResult> GetPeriodAssetTradeVolume(
+        public Task<IActionResult> GetPeriodAssetTradeVolume(
             string assetId,
             DateTime fromDate,
             DateTime toDate)
         {
-            return await GetPeriodClientAssetTradeVolume(
+            return GetPeriodClientAssetTradeVolume(
                 assetId,
                 Constants.AllClients,
                 fromDate,
@@ -49,12 +49,12 @@ namespace Lykke.Service.TradeVolumes.Controllers
         [HttpGet("pair/{assetPairId}/all/{fromDate}/{toDate}")]
         [SwaggerOperation("GetPeriodAssetPairTradeVolume")]
         [ProducesResponseType(typeof(AssetPairTradeVolumeResponse), (int)HttpStatusCode.OK)]
-        public async Task<IActionResult> GetPeriodAssetPairTradeVolume(
+        public Task<IActionResult> GetPeriodAssetPairTradeVolume(
             string assetPairId,
             DateTime fromDate,
             DateTime toDate)
         {
-            return await GetPeriodClientAssetPairTradeVolume(
+            return GetPeriodClientAssetPairTradeVolume(
                 assetPairId,
                 Constants.AllClients,
                 fromDate,

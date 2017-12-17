@@ -85,14 +85,19 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
                 if (existingTables.Contains(tableName))
                     dates.Add(start);
             }
-            await Task.WhenAll(dates.Select(d =>
-                AddTradeVolumeAsync(
-                    d,
-                    clientId,
-                    baseAssetId,
-                    quotingAssetId,
-                    excludeClientId,
-                    tradeVolumes)));
+            const int step = 500;
+            for (int i = 0; i < dates.Count; i += step)
+            {
+                var datesRange = dates.GetRange(i, Math.Min(step, dates.Count - i));
+                await Task.WhenAll(datesRange.Select(d =>
+                    AddTradeVolumeAsync(
+                        d,
+                        clientId,
+                        baseAssetId,
+                        quotingAssetId,
+                        excludeClientId,
+                        tradeVolumes)));
+            }
             return tradeVolumes.Sum();
         }
 
@@ -183,8 +188,8 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
                 if (now.Subtract(date).TotalHours >= 1 || now.Hour != date.Hour)
                 {
                     double quotingVolume = items.Sum(i => i.QuotingVolume.HasValue ? i.QuotingVolume.Value : 0);
-                    ThreadPool.QueueUserWorkItem(_ =>
-                        AddAllVolumeAsync(
+                    Task.Run(async () =>
+                        await AddAllVolumeAsync(
                             storage,
                             baseAssetId,
                             result,
@@ -237,7 +242,7 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
             while (token != null);
         }
 
-        private async void AddAllVolumeAsync(
+        private async Task AddAllVolumeAsync(
             INoSQLTableStorage<TradeVolumeEntity> storage,
             string baseAssetId,
             double baseVolume,
@@ -245,14 +250,21 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
             double quotingVolume,
             DateTime dateTime)
         {
-            var baseEntity = TradeVolumeEntity.Create(
+            try
+            {
+                var baseEntity = TradeVolumeEntity.Create(
                 Constants.AllClients,
                 baseAssetId,
                 baseVolume,
                 quotingAssetId ?? Constants.AllAssets,
                 quotingVolume,
                 dateTime);
-            await storage.InsertOrMergeAsync(baseEntity);
+                await storage.InsertOrMergeAsync(baseEntity);
+            }
+            catch (Exception ex)
+            {
+                await _log.WriteErrorAsync(nameof(TradeVolumesRepository), nameof(AddAllVolumeAsync), ex);
+            }
         }
     }
 }
