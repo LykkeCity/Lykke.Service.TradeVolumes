@@ -1,11 +1,6 @@
 ﻿using System;
-using System.Linq;
-using System.Collections.Generic;
 using System.Threading.Tasks;
 using Common.Log;
-using Lykke.Service.Assets.Client;
-using Lykke.Service.Assets.Client.Models;
-using Lykke.Service.TradeVolumes.Core;
 using Lykke.Service.TradeVolumes.Core.Messages;
 using Lykke.Service.TradeVolumes.Core.Services;
 using Lykke.Service.TradeVolumes.Core.Repositories;
@@ -14,21 +9,18 @@ namespace Lykke.Service.TradeVolumes.Services
 {
     public class TradeVolumesCalculator : ITradeVolumesCalculator
     {
-        private readonly IAssetsService _assetsService;
+        private readonly IAssetsDictionary _assetsDictionary;
         private readonly ITradeVolumesRepository _tradeVolumesRepository;
         private readonly ILog _log;
-        private readonly Dictionary<string, AssetPair> _pairsDict;
 
         public TradeVolumesCalculator(
-            IAssetsService assetsService,
+            IAssetsDictionary assetsDictionary,
             ITradeVolumesRepository tradeVolumesRepository,
             ILog log)
         {
-            _assetsService = assetsService;
+            _assetsDictionary = assetsDictionary;
             _tradeVolumesRepository = tradeVolumesRepository;
             _log = log;
-            var pairs = _assetsService.AssetPairGetAllAsync().Result;
-            _pairsDict = pairs.ToDictionary(i => i.Id, i => i);
         }
 
         public async Task AddTradeLogItemAsync(TradeLogItem item)
@@ -37,8 +29,7 @@ namespace Lykke.Service.TradeVolumes.Services
                 item.DateTime,
                 item.UserId,
                 item.Asset,
-                item.OppositeAsset,
-                Constants.AllClients);
+                item.OppositeAsset);
 
             tradeVolume += (double)item.Volume;
             oppositeTradeVolume += item.OppositeVolume.HasValue ? (double)item.OppositeVolume.Value : 0;
@@ -58,21 +49,19 @@ namespace Lykke.Service.TradeVolumes.Services
             DateTime to)
         {
             clientId = ClientIdHashHelper.GetClientIdHash(clientId);
-            (string baseAssetId, string quotingAssetId) = GetAssetIds(assetPairId);
+            (string baseAssetId, string quotingAssetId) = await _assetsDictionary.GetAssetIdsAsync(assetPairId);
             double baseVolume = await _tradeVolumesRepository.GetPeriodClientVolumeAsync(
                 baseAssetId,
                 quotingAssetId,
                 clientId,
                 from,
-                to,
-                clientId == Constants.AllClients ? null : Constants.AllClients);
+                to);
             double quotingVolume = await _tradeVolumesRepository.GetPeriodClientVolumeAsync(
                 quotingAssetId,
                 baseAssetId,
                 clientId,
                 from,
-                to,
-                clientId == Constants.AllClients ? null : Constants.AllClients);
+                to);
             return (baseVolume, quotingVolume);
         }
 
@@ -88,28 +77,7 @@ namespace Lykke.Service.TradeVolumes.Services
                 null,
                 clientId,
                 from,
-                to,
-                clientId == Constants.AllClients ? null : Constants.AllClients);
-        }
-
-        private (string,string) GetAssetIds(string assetPair)
-        {
-            if (_pairsDict.ContainsKey(assetPair))
-                return (_pairsDict[assetPair].BaseAssetId, _pairsDict[assetPair].QuotingAssetId);
-
-            var pairs = _assetsService.AssetPairGetAllAsync().Result;
-            foreach (var pair in pairs)
-            {
-                if (_pairsDict.ContainsKey(pair.Id))
-                    continue;
-
-                _pairsDict.Add(pair.Id, pair);
-            }
-
-            if (!_pairsDict.ContainsKey(assetPair))
-                throw new UnknownPairException($"Unknown assetPair {assetPair}!");
-
-            return (_pairsDict[assetPair].BaseAssetId, _pairsDict[assetPair].QuotingAssetId);
+                to);
         }
     }
 }

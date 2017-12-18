@@ -11,6 +11,7 @@ using AzureStorage;
 using AzureStorage.Tables;
 using Lykke.SettingsReader;
 using Lykke.Service.TradeVolumes.Core;
+using Lykke.Service.TradeVolumes.Core.Services;
 using Lykke.Service.TradeVolumes.Core.Repositories;
 using Lykke.Service.TradeVolumes.AzureRepositories.Models;
 
@@ -22,6 +23,7 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
         private const string _rowKey = "RowKey";
 
         private readonly IReloadingManager<string> _connectionStringManager;
+        private readonly IAssetsDictionary _assetsDictionary;
         private readonly ILog _log;
         private readonly CloudTableClient _tableClient;
         private readonly TimeSpan _timeout = TimeSpan.FromMinutes(5);
@@ -30,9 +32,13 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
             new ConcurrentDictionary<string, INoSQLTableStorage<TradeVolumeEntity>>();
         private DateTime _cacheDate = DateTime.MinValue;
 
-        public TradeVolumesRepository(IReloadingManager<string> connectionStringManager, ILog log)
+        public TradeVolumesRepository(
+            IReloadingManager<string> connectionStringManager,
+            IAssetsDictionary assetsDictionary,
+            ILog log)
         {
             _connectionStringManager = connectionStringManager;
+            _assetsDictionary = assetsDictionary;
             _log = log;
             _tableClient = CloudStorageAccount.Parse(connectionStringManager.CurrentValue).CreateCloudTableClient();
         }
@@ -52,14 +58,14 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
             }
 
             var baseEntity = TradeVolumeEntity.Create(
+                dateTime,
                 clientId,
                 baseAssetId,
                 baseVolume,
                 quotingAssetId,
-                quotingVolume,
-                dateTime);
-            var baseStorage = GetStorage(baseAssetId, dateTime);
-            await baseStorage.InsertOrMergeAsync(baseEntity);
+                quotingVolume);
+            var baseStorage = GetStorage(baseAssetId, quotingAssetId);
+            await baseStorage.InsertOrReplaceAsync(baseEntity);
         }
 
         public async Task<double> GetPeriodClientVolumeAsync(
@@ -67,78 +73,133 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
             string quotingAssetId,
             string clientId,
             DateTime from,
-            DateTime to,
-            string excludeClientId)
+            DateTime to)
         {
             var tradeVolumes = new List<double>();
-            var months = new List<DateTime>();
-            var existingTables = new HashSet<string>();
-            for (DateTime start = from; start < to; start = start.AddMonths(1))
-            {
-                months.Add(start);
-                await AddExistingTableNamesAsync(baseAssetId, start, existingTables);
-            }
-            var dates = new List<DateTime>();
-            for (DateTime start = from; start < to; start = start.AddHours(1))
-            {
-                var tableName = GetTableName(baseAssetId, start);
-                if (existingTables.Contains(tableName))
-                    dates.Add(start);
-            }
-            const int step = 500;
-            for (int i = 0; i < dates.Count; i += step)
-            {
-                var datesRange = dates.GetRange(i, Math.Min(step, dates.Count - i));
-                await Task.WhenAll(datesRange.Select(d =>
-                    AddTradeVolumeAsync(
-                        d,
-                        clientId,
-                        baseAssetId,
-                        quotingAssetId,
-                        excludeClientId,
-                        tradeVolumes)));
-            }
-            return tradeVolumes.Sum();
+            if (quotingAssetId == null)
+                return await GetAssetTradeVolumeAsync(
+                    from,
+                    to,
+                    clientId,
+                    baseAssetId);
+
+            var storage = GetStorage(baseAssetId, quotingAssetId);
+            return await GetTableTradeVolumeAsync(
+                from,
+                to,
+                clientId,
+                storage);
         }
 
         public async Task<(double, double)> GetClientPairValuesAsync(
             DateTime date,
             string clientId,
             string baseAssetId,
-            string quotingAssetId,
-            string excludeClientId)
+            string quotingAssetId)
         {
             double baseTradeVolume = await GetTradeVolumeAsync(
                 date,
                 clientId,
                 baseAssetId,
-                quotingAssetId,
-                excludeClientId);
+                quotingAssetId);
 
             double quotingTradeVolume = await GetTradeVolumeAsync(
                 date,
                 clientId,
                 quotingAssetId,
-                baseAssetId,
-                excludeClientId);
+                baseAssetId);
 
             return (baseTradeVolume, quotingTradeVolume);
         }
 
-        private async Task AddTradeVolumeAsync(
+        private async Task<double> GetTradeVolumeAsync(
             DateTime date,
             string clientId,
             string baseAssetId,
-            string quotingAssetId,
-            string excludeClientId,
+            string quotingAssetId)
+        {
+            var storage = GetStorage(baseAssetId, quotingAssetId);
+            var result = await storage.GetDataAsync(
+                TradeVolumeEntity.GeneratePartitionKey(date),
+                TradeVolumeEntity.GenerateRowKey(clientId));
+            return result != null ? (result.BaseVolume.HasValue ? result.BaseVolume.Value : 0) : 0;
+        }
+
+        private async Task<double> GetTableTradeVolumeAsync(
+            DateTime from,
+            DateTime to,
+            string clientId,
+            INoSQLTableStorage<TradeVolumeEntity> storage)
+        {
+            string fromFilter = TableQuery.GenerateFilterCondition(
+                _partitionKey,
+                QueryComparisons.GreaterThanOrEqual,
+                TradeVolumeEntity.GeneratePartitionKey(from));
+            string toFilter = TableQuery.GenerateFilterCondition(
+                _partitionKey,
+                QueryComparisons.LessThan,
+                TradeVolumeEntity.GeneratePartitionKey(to));
+            var filter = TableQuery.CombineFilters(fromFilter, TableOperators.And, toFilter);
+            if (clientId != Constants.AllClients)
+            {
+                var rowKeyFilter = TableQuery.GenerateFilterCondition(
+                    _rowKey,
+                    QueryComparisons.Equal,
+                    TradeVolumeEntity.GenerateRowKey(clientId));
+            }
+            var query = new TableQuery<TradeVolumeEntity>().Where(filter);
+            var items = await storage.WhereAsync(query);
+            double result = items.Sum(i => i.BaseVolume.HasValue ? i.BaseVolume.Value : 0);
+            return result;
+        }
+
+        private async Task<double> GetAssetTradeVolumeAsync(
+            DateTime from,
+            DateTime to,
+            string clientId,
+            string assetId)
+        {
+            var tables = await GetTableNamesAsync(assetId);
+            var possibleTableNames = await _assetsDictionary.GeneratePossibleTableNamesAsync(assetId);
+            var tablesToProcess = new List<string>(tables.Count);
+            foreach (var possibleTableName in possibleTableNames)
+            {
+                if (tables.Contains(possibleTableName))
+                    tablesToProcess.Add(possibleTableName);
+            }
+            var tradeVolumes = new List<double>();
+            const int step = 500;
+            for (int i = 0; i < tablesToProcess.Count; i += step)
+            {
+                var tablesRange = tablesToProcess.GetRange(i, Math.Min(step, tablesToProcess.Count - i));
+                await Task.WhenAll(tablesRange.Select(t =>
+                    AddTradeVolumeAsync(
+                        from,
+                        to,
+                        clientId,
+                        t,
+                        tradeVolumes)));
+            }
+            return tradeVolumes.Sum();
+        }
+
+        private async Task AddTradeVolumeAsync(
+            DateTime from,
+            DateTime to,
+            string clientId,
+            string tableName,
             List<double> tradeVolumes)
         {
-            double tradeVolume = await GetTradeVolumeAsync(
-                date,
+            var storage = AzureTableStorage<TradeVolumeEntity>.Create(
+                _connectionStringManager,
+                tableName,
+                _log,
+                _timeout);
+            double tradeVolume = await GetTableTradeVolumeAsync(
+                from,
+                to,
                 clientId,
-                baseAssetId,
-                quotingAssetId,
-                excludeClientId);
+                storage);
             if (tradeVolume == 0)
                 return;
             await _lock.WaitAsync();
@@ -152,119 +213,45 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
             }
         }
 
-        private async Task<double> GetTradeVolumeAsync(
-            DateTime date,
-            string clientId,
-            string baseAssetId,
-            string quotingAssetId,
-            string excludeClientId)
+        private async Task<HashSet<string>> GetTableNamesAsync(string assetId)
         {
-            var storage = GetStorage(baseAssetId, date);
-            if (clientId == Constants.AllClients)
-            {
-                string filterAsset = quotingAssetId ?? Constants.AllAssets;
-                var data = await storage.GetDataAsync(Constants.AllClients, filterAsset);
-                if (data != null)
-                    return data.BaseVolume.HasValue ? data.BaseVolume.Value : 0;
-            }
-            string filter =
-                clientId == Constants.AllClients
-                ? TableQuery.GenerateFilterCondition(_partitionKey, QueryComparisons.NotEqual, Constants.AllClients)
-                : TableQuery.GenerateFilterCondition(_partitionKey, QueryComparisons.Equal, clientId);
-            if (!string.IsNullOrWhiteSpace(quotingAssetId))
-            {
-                var rowFilter = TableQuery.GenerateFilterCondition(_rowKey, QueryComparisons.Equal, quotingAssetId);
-                filter = TableQuery.CombineFilters(filter, TableOperators.And, rowFilter);
-            }
-            var query = new TableQuery<TradeVolumeEntity>().Where(filter);
-            var items = await storage.WhereAsync(query);
-            if (clientId != excludeClientId && excludeClientId != null)
-                items = items.Where(i => i.PartitionKey != excludeClientId);
-            double result = items.Sum(i => i.BaseVolume.HasValue ? i.BaseVolume.Value : 0);
-            if (clientId == Constants.AllClients)
-            {
-                result /= 2;
-                var now = DateTime.UtcNow;
-                if (now.Subtract(date).TotalHours >= 1 || now.Hour != date.Hour)
-                {
-                    double quotingVolume = items.Sum(i => i.QuotingVolume.HasValue ? i.QuotingVolume.Value : 0);
-                    Task.Run(async () =>
-                        await AddAllVolumeAsync(
-                            storage,
-                            baseAssetId,
-                            result,
-                            quotingAssetId,
-                            quotingVolume,
-                            now));
-                }
-            }
-            return result;
-        }
-
-        private INoSQLTableStorage<TradeVolumeEntity> GetStorage(string assetId, DateTime date)
-        {
-            string tableName = GetTableName(assetId, date);
-            if (!_storagesCache.TryGetValue(tableName, out INoSQLTableStorage<TradeVolumeEntity> storage))
-            {
-                storage = AzureTableStorage<TradeVolumeEntity>.Create(_connectionStringManager, tableName, _log, _timeout);
-                _storagesCache.TryAdd(tableName, storage);
-            }
-            return storage;
-        }
-
-        private static string GetTableName(string assetId, DateTime date)
-        {
-            assetId = assetId.Replace("-", "");
-            string tableName = $"Asset{assetId}on{date.ToString(Constants.DateTimeFormat)}";
-            return tableName;
-        }
-
-        private static string GetTablesPrefix(string assetId, DateTime date)
-        {
-            assetId = assetId.Replace("-", "");
-            string tableName = $"Asset{assetId}on{date.ToString("yyyyMM")}";
-            return tableName;
-        }
-
-        private async Task AddExistingTableNamesAsync(string assetId, DateTime date, ICollection<string> existingTables)
-        {
-            string tablesPrefix = GetTablesPrefix(assetId, date);
+            string tablesPrefix = GetTablesPrefix(assetId);
             TableContinuationToken token = null;
+            var result = new HashSet<string>();
             do
             {
                 var response = await _tableClient.ListTablesSegmentedAsync(tablesPrefix, token);
                 token = response.ContinuationToken;
                 foreach (var table in response.Results)
                 {
-                    existingTables.Add(table.Name);
+                    result.Add(table.Name);
                 }
             }
             while (token != null);
+            return result;
         }
 
-        private async Task AddAllVolumeAsync(
-            INoSQLTableStorage<TradeVolumeEntity> storage,
-            string baseAssetId,
-            double baseVolume,
-            string quotingAssetId,
-            double quotingVolume,
-            DateTime dateTime)
+        private INoSQLTableStorage<TradeVolumeEntity> GetStorage(string baseAssetId, string quotingAssetId)
         {
-            try
-            {
-                var baseEntity = TradeVolumeEntity.Create(
-                Constants.AllClients,
-                baseAssetId,
-                baseVolume,
-                quotingAssetId ?? Constants.AllAssets,
-                quotingVolume,
-                dateTime);
-                await storage.InsertOrMergeAsync(baseEntity);
-            }
-            catch (Exception ex)
-            {
-                await _log.WriteErrorAsync(nameof(TradeVolumesRepository), nameof(AddAllVolumeAsync), ex);
-            }
+            string tableName = GetTableName(baseAssetId, quotingAssetId);
+            return AzureTableStorage<TradeVolumeEntity>.Create(
+                _connectionStringManager,
+                tableName,
+                _log,
+                _timeout);
+        }
+
+        private static string GetTableName(string baseAssetId, string quotingAssetId)
+        {
+            baseAssetId = baseAssetId.Replace("-", "");
+            quotingAssetId = quotingAssetId.Replace("-", "");
+            return string.Format(Constants.TableNameFormat, baseAssetId, quotingAssetId);
+        }
+
+        private static string GetTablesPrefix(string assetId)
+        {
+            assetId = assetId.Replace("-", "");
+            return $"Asset{assetId}vs";
         }
     }
 }

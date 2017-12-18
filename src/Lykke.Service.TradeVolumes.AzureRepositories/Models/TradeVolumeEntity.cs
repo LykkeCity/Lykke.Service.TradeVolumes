@@ -1,10 +1,13 @@
 ﻿using System;
 using Microsoft.WindowsAzure.Storage.Table;
+using Lykke.Service.TradeVolumes.Core;
 
 namespace Lykke.Service.TradeVolumes.AzureRepositories.Models
 {
     public class TradeVolumeEntity : TableEntity
     {
+        public string ClientId { get; set; }
+
         public string BaseAssetId { get; set; }
 
         public double? BaseVolume { get; set; }
@@ -16,17 +19,18 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories.Models
         public DateTime DateTime { get; set; }
 
         public static TradeVolumeEntity Create(
+            DateTime datetime,
             string clientId,
             string baseAssetId,
             double? baseVolume,
             string quotingAssetId,
-            double? quotingVolume,
-            DateTime datetime)
+            double? quotingVolume)
         {
             return new TradeVolumeEntity
             {
-                PartitionKey = GeneratePartitionKey(clientId),
+                PartitionKey = GeneratePartitionKey(datetime),
                 RowKey = GenerateRowKey(quotingAssetId),
+                ClientId = clientId,
                 BaseAssetId = baseAssetId,
                 BaseVolume = baseVolume,
                 QuotingAssetId = quotingAssetId,
@@ -35,14 +39,14 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories.Models
             };
         }
 
-        public static string GeneratePartitionKey(string clientId)
+        public static string GeneratePartitionKey(DateTime datetime)
         {
-            return clientId;
+            return datetime.ToString(Constants.DateTimeFormat);
         }
 
-        public static string GenerateRowKey(string quotingAssetId)
+        public static string GenerateRowKey(string clientId)
         {
-            return quotingAssetId;
+            return clientId;
         }
     }
 }
