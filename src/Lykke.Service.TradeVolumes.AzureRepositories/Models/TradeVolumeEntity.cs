@@ -1,11 +1,12 @@
 ﻿using System;
 using Microsoft.WindowsAzure.Storage.Table;
-using Lykke.Service.TradeVolumes.Core;
 
 namespace Lykke.Service.TradeVolumes.AzureRepositories.Models
 {
     public class TradeVolumeEntity : TableEntity
     {
+        private const string _dateTimeFormat = "yyyyMMddHH";
+
         public string ClientId { get; set; }
 
         public string BaseAssetId { get; set; }
@@ -41,7 +42,7 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories.Models
 
         public static string GeneratePartitionKey(DateTime datetime)
         {
-            return datetime.ToString(Constants.DateTimeFormat);
+            return datetime.ToString(_dateTimeFormat);
         }
 
         public static string GenerateRowKey(string clientId)

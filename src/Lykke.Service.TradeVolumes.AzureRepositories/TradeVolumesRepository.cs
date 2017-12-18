@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Linq;
 using System.Collections.Generic;
-using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.WindowsAzure.Storage;
@@ -28,9 +27,6 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
         private readonly CloudTableClient _tableClient;
         private readonly TimeSpan _timeout = TimeSpan.FromMinutes(5);
         private readonly SemaphoreSlim _lock = new SemaphoreSlim(1, 1);
-        private readonly ConcurrentDictionary<string, INoSQLTableStorage<TradeVolumeEntity>> _storagesCache =
-            new ConcurrentDictionary<string, INoSQLTableStorage<TradeVolumeEntity>>();
-        private DateTime _cacheDate = DateTime.MinValue;
 
         public TradeVolumesRepository(
             IReloadingManager<string> connectionStringManager,
@@ -51,12 +47,6 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
             string quotingAssetId,
             double? quotingVolume)
         {
-            if (dateTime.Subtract(_cacheDate).TotalHours > 1)
-            {
-                _storagesCache.Clear();
-                _cacheDate = dateTime;
-            }
-
             var baseEntity = TradeVolumeEntity.Create(
                 dateTime,
                 clientId,
@@ -146,10 +136,13 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
                     _rowKey,
                     QueryComparisons.Equal,
                     TradeVolumeEntity.GenerateRowKey(clientId));
+                filter = TableQuery.CombineFilters(filter, TableOperators.And, rowKeyFilter);
             }
             var query = new TableQuery<TradeVolumeEntity>().Where(filter);
             var items = await storage.WhereAsync(query);
             double result = items.Sum(i => i.BaseVolume.HasValue ? i.BaseVolume.Value : 0);
+            if (clientId == Constants.AllClients)
+                result /= 2;
             return result;
         }
 
@@ -215,7 +208,8 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
 
         private async Task<HashSet<string>> GetTableNamesAsync(string assetId)
         {
-            string tablesPrefix = GetTablesPrefix(assetId);
+            assetId = assetId.Replace("-", "");
+            string tablesPrefix = string.Format(Constants.TableNamesPrefix, assetId);
             TableContinuationToken token = null;
             var result = new HashSet<string>();
             do
@@ -233,25 +227,14 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
 
         private INoSQLTableStorage<TradeVolumeEntity> GetStorage(string baseAssetId, string quotingAssetId)
         {
-            string tableName = GetTableName(baseAssetId, quotingAssetId);
+            baseAssetId = baseAssetId.Replace("-", "");
+            quotingAssetId = quotingAssetId.Replace("-", "");
+            string tableName = string.Format(Constants.TableNameFormat, baseAssetId, quotingAssetId);
             return AzureTableStorage<TradeVolumeEntity>.Create(
                 _connectionStringManager,
                 tableName,
                 _log,
                 _timeout);
-        }
-
-        private static string GetTableName(string baseAssetId, string quotingAssetId)
-        {
-            baseAssetId = baseAssetId.Replace("-", "");
-            quotingAssetId = quotingAssetId.Replace("-", "");
-            return string.Format(Constants.TableNameFormat, baseAssetId, quotingAssetId);
-        }
-
-        private static string GetTablesPrefix(string assetId)
-        {
-            assetId = assetId.Replace("-", "");
-            return $"Asset{assetId}vs";
         }
     }
 }
