@@ -29,7 +29,7 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories.Models
             return new TradeVolumeEntity
             {
                 PartitionKey = GeneratePartitionKey(datetime),
-                RowKey = GenerateRowKey(quotingAssetId),
+                RowKey = GenerateRowKey(clientId),
                 ClientId = clientId,
                 BaseAssetId = baseAssetId,
                 BaseVolume = baseVolume,
