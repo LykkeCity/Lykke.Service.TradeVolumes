@@ -3,6 +3,7 @@ using System.Net;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.SwaggerGen;
+using Common;
 using Lykke.Service.TradeVolumes.Core;
 using Lykke.Service.TradeVolumes.Core.Services;
 using Lykke.Service.TradeVolumes.Models;
@@ -94,8 +95,10 @@ namespace Lykke.Service.TradeVolumes.Controllers
 
             if (fromDate.Kind == DateTimeKind.Unspecified)
                 fromDate = DateTime.SpecifyKind(fromDate, DateTimeKind.Utc);
+            fromDate = fromDate.RoundToHour();
             if (toDate.Kind == DateTimeKind.Unspecified)
                 toDate = DateTime.SpecifyKind(toDate, DateTimeKind.Utc);
+            toDate = toDate.RoundToHour();
 
             double tradeVolume = await _tradeVolumesCalculator.GetPeriodAssetVolumeAsync(
                 assetId,
@@ -145,8 +148,10 @@ namespace Lykke.Service.TradeVolumes.Controllers
 
             if (fromDate.Kind == DateTimeKind.Unspecified)
                 fromDate = DateTime.SpecifyKind(fromDate, DateTimeKind.Utc);
+            fromDate = fromDate.RoundToHour();
             if (toDate.Kind == DateTimeKind.Unspecified)
                 toDate = DateTime.SpecifyKind(toDate, DateTimeKind.Utc);
+            toDate = toDate.RoundToHour();
 
             try
             {

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Threading.Tasks;
+using Common;
 using Common.Log;
 using Lykke.Service.TradeVolumes.Core.Messages;
 using Lykke.Service.TradeVolumes.Core.Services;
@@ -12,6 +13,7 @@ namespace Lykke.Service.TradeVolumes.Services
         private readonly IAssetsDictionary _assetsDictionary;
         private readonly ITradeVolumesRepository _tradeVolumesRepository;
         private readonly ILog _log;
+        private readonly CachesManager _cachesManager;
 
         public TradeVolumesCalculator(
             IAssetsDictionary assetsDictionary,
@@ -21,6 +23,8 @@ namespace Lykke.Service.TradeVolumes.Services
             _assetsDictionary = assetsDictionary;
             _tradeVolumesRepository = tradeVolumesRepository;
             _log = log;
+            _cachesManager = new CachesManager(_log);
+            _cachesManager.Start();
         }
 
         public async Task AddTradeLogItemAsync(TradeLogItem item)
@@ -49,6 +53,19 @@ namespace Lykke.Service.TradeVolumes.Services
             DateTime to)
         {
             clientId = ClientIdHashHelper.GetClientIdHash(clientId);
+            var now = DateTime.UtcNow.RoundToHour();
+            if (now < to)
+                to = now;
+
+            if (_cachesManager.TryGetAssetPairTradeVolume(
+                clientId,
+                assetPairId,
+                from,
+                to,
+                now,
+                out (double, double) cachedResult))
+                return cachedResult;
+
             (string baseAssetId, string quotingAssetId) = await _assetsDictionary.GetAssetIdsAsync(assetPairId);
             double baseVolume = await _tradeVolumesRepository.GetPeriodClientVolumeAsync(
                 baseAssetId,
@@ -62,7 +79,17 @@ namespace Lykke.Service.TradeVolumes.Services
                 clientId,
                 from,
                 to);
-            return (baseVolume, quotingVolume);
+            var result = (baseVolume, quotingVolume);
+
+            _cachesManager.AddAssetPairTradeVolume(
+                clientId,
+                assetPairId,
+                from,
+                to,
+                now,
+                result);
+
+            return result;
         }
 
         public async Task<double> GetPeriodAssetVolumeAsync(
@@ -72,12 +99,35 @@ namespace Lykke.Service.TradeVolumes.Services
             DateTime to)
         {
             clientId = ClientIdHashHelper.GetClientIdHash(clientId);
-            return await _tradeVolumesRepository.GetPeriodClientVolumeAsync(
+            var now = DateTime.UtcNow.RoundToHour();
+            if (now < to)
+                to = now;
+
+            if (_cachesManager.TryGetAssetTradeVolume(
+                clientId,
+                assetId,
+                from,
+                to,
+                now,
+                out double cachedResult))
+                return cachedResult;
+
+            double result = await _tradeVolumesRepository.GetPeriodClientVolumeAsync(
                 assetId,
                 null,
                 clientId,
                 from,
                 to);
+
+            _cachesManager.AddAssetTradeVolume(
+                clientId,
+                assetId,
+                from,
+                to,
+                now,
+                result);
+
+            return result;
         }
     }
 }
