@@ -56,6 +56,11 @@ namespace Lykke.Service.TradeVolumes.Modules
                 .As<IAssetsService>()
                 .SingleInstance();
 
+            builder.RegisterType<CachesManager>()
+                .As<ICachesManager>()
+                .As<IStartable>()
+                .SingleInstance();
+
             builder.RegisterType<AssetsDictionary>()
                 .As<IAssetsDictionary>()
                 .SingleInstance();

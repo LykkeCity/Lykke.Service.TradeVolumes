@@ -95,9 +95,13 @@ namespace Lykke.Service.TradeVolumes.Controllers
 
             if (fromDate.Kind == DateTimeKind.Unspecified)
                 fromDate = DateTime.SpecifyKind(fromDate, DateTimeKind.Utc);
+            else if (fromDate.Kind == DateTimeKind.Local)
+                fromDate = fromDate.ToUniversalTime();
             fromDate = fromDate.RoundToHour();
             if (toDate.Kind == DateTimeKind.Unspecified)
                 toDate = DateTime.SpecifyKind(toDate, DateTimeKind.Utc);
+            else if (toDate.Kind == DateTimeKind.Local)
+                toDate = toDate.ToUniversalTime();
             toDate = toDate.RoundToHour();
 
             double tradeVolume = await _tradeVolumesCalculator.GetPeriodAssetVolumeAsync(
@@ -148,9 +152,13 @@ namespace Lykke.Service.TradeVolumes.Controllers
 
             if (fromDate.Kind == DateTimeKind.Unspecified)
                 fromDate = DateTime.SpecifyKind(fromDate, DateTimeKind.Utc);
+            else if (fromDate.Kind == DateTimeKind.Local)
+                fromDate = fromDate.ToUniversalTime();
             fromDate = fromDate.RoundToHour();
             if (toDate.Kind == DateTimeKind.Unspecified)
                 toDate = DateTime.SpecifyKind(toDate, DateTimeKind.Utc);
+            else if (toDate.Kind == DateTimeKind.Local)
+                toDate = toDate.ToUniversalTime();
             toDate = toDate.RoundToHour();
 
             try

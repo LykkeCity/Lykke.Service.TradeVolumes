@@ -13,18 +13,18 @@ namespace Lykke.Service.TradeVolumes.Services
         private readonly IAssetsDictionary _assetsDictionary;
         private readonly ITradeVolumesRepository _tradeVolumesRepository;
         private readonly ILog _log;
-        private readonly CachesManager _cachesManager;
+        private readonly ICachesManager _cachesManager;
 
         public TradeVolumesCalculator(
             IAssetsDictionary assetsDictionary,
+            ICachesManager cachesManager,
             ITradeVolumesRepository tradeVolumesRepository,
             ILog log)
         {
             _assetsDictionary = assetsDictionary;
             _tradeVolumesRepository = tradeVolumesRepository;
             _log = log;
-            _cachesManager = new CachesManager(_log);
-            _cachesManager.Start();
+            _cachesManager = cachesManager;
         }
 
         public async Task AddTradeLogItemAsync(TradeLogItem item)
