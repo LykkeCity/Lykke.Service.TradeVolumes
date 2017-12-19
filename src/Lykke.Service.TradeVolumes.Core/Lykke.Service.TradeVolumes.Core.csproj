@@ -8,16 +8,11 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Remove="Settings\AppSettings.cs" />
-  </ItemGroup>
-
-  <ItemGroup>
     <PackageReference Include="Lykke.Common" Version="3.0.2" />
   </ItemGroup>
 
   <ItemGroup>
     <Folder Include="Domain\" />
-    <Folder Include="Settings\" />
   </ItemGroup>
 
 </Project>

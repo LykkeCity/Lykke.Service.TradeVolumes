@@ -1,6 +1,4 @@
-using System;
-
-namespace Lykke.Service.TradeVolumes.Client 
+﻿namespace Lykke.Service.TradeVolumes.Client 
 {
     public class TradeVolumesServiceClientSettings 
     {

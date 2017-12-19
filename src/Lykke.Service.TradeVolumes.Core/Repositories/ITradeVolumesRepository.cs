@@ -5,7 +5,7 @@ namespace Lykke.Service.TradeVolumes.Core.Repositories
 {
     public interface ITradeVolumesRepository
     {
-        Task UpdateTradeVolumesAsync(
+        Task NotThreadSafeTradeVolumesUpdateAsync(
             DateTime dateTime,
             string clientId,
             string baseAssetId,

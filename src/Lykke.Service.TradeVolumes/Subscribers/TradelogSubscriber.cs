@@ -54,7 +54,15 @@ namespace Lykke.Service.TradeVolumes.Subscribers
 
         private async Task ProcessMessageAsync(TradeLogItem arg)
         {
-            await _tradeVolumesCalculator.AddTradeLogItemAsync(arg);
+            try
+            {
+                await _tradeVolumesCalculator.AddTradeLogItemAsync(arg);
+            }
+            catch (Exception ex)
+            {
+                await _log.WriteErrorAsync("TradelogSubscriber.ProcessMessageAsync", arg.ToJson(), ex);
+                throw;
+            }
         }
 
         public void Dispose()

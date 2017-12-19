@@ -51,14 +51,18 @@ namespace Lykke.Service.TradeVolumes.Modules
             builder.RegisterType<ShutdownManager>()
                 .As<IShutdownManager>();
 
-            var tradeVolumesRepository = new TradeVolumesRepository(_settingsManager.Nested(x => x.TradeVolumesService.TradeVolumesConnString), _log);
-            builder.RegisterInstance(tradeVolumesRepository)
-                .As<ITradeVolumesRepository>()
+            builder.RegisterType<AssetsService>()
+                .WithParameter(TypedParameter.From(new Uri(_settings.AssetsServiceClient.ServiceUrl)))
+                .As<IAssetsService>()
                 .SingleInstance();
 
-            var assetsService = new AssetsService(new Uri(_settings.AssetsServiceClient.ServiceUrl));
-            builder.RegisterInstance(assetsService)
-                .As<IAssetsService>()
+            builder.RegisterType<AssetsDictionary>()
+                .As<IAssetsDictionary>()
+                .SingleInstance();
+
+            builder.RegisterType<TradeVolumesRepository>()
+                .WithParameter(TypedParameter.From(_settingsManager.Nested(x => x.TradeVolumesService.TradeVolumesConnString)))
+                .As<ITradeVolumesRepository>()
                 .SingleInstance();
 
             builder.RegisterType<TradeVolumesCalculator>()
