@@ -33,8 +33,11 @@ namespace Lykke.Service.TradeVolumes.Services
             DateTime now = DateTime.UtcNow.RoundToHour();
             DateTime oldestPossible = now.AddHours(-_cacheLifeHoursCount);
             int periodKey = GetPeriodKey(oldestPossible, oldestPossible);
+
+            var clientsToRemove = new List<string>();
             foreach (var clientPair in cache)
             {
+                var assetsToRemove = new List<string>();
                 foreach (var assetPair in clientPair.Value)
                 {
                     var keysToClear = new List<int>();
@@ -45,9 +48,21 @@ namespace Lykke.Service.TradeVolumes.Services
                     }
                     foreach (var key in keysToClear)
                     {
-                        assetPair.Value.TryRemove(key, out var _);
+                        assetPair.Value.Remove(key, out var _);
                     }
+                    if (assetPair.Value.Count == 0)
+                        assetsToRemove.Add(assetPair.Key);
                 }
+                foreach (var asset in assetsToRemove)
+                {
+                    clientPair.Value.Remove(asset, out var _);
+                }
+                if (clientPair.Value.Count == 0)
+                    clientsToRemove.Add(clientPair.Key);
+            }
+            foreach (var client in clientsToRemove)
+            {
+                cache.Remove(client, out var _);
             }
         }
 
