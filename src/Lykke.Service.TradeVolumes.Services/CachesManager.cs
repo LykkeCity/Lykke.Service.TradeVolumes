@@ -10,7 +10,6 @@ namespace Lykke.Service.TradeVolumes.Services
     internal class CachesManager : TimerPeriod
     {
         private const int _cacheLifeHoursCount = 24 * 31;
-        private const int _cacheLifeHours10BaseCeiling = 1000;
 
         private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, ConcurrentDictionary<int, double>>> _assetVolumesCache
             = new ConcurrentDictionary<string, ConcurrentDictionary<string, ConcurrentDictionary<int, double>>>();
@@ -159,7 +158,7 @@ namespace Lykke.Service.TradeVolumes.Services
         private int GetPeriodKey(DateTime from, DateTime to)
         {
             var hoursLength = (int)to.Subtract(from).TotalHours;
-            int key = (((from.Year % 100) * 100 + from.Month) * 100 + from.Day) * _cacheLifeHours10BaseCeiling + hoursLength;
+            int key = ((((from.Year % 100) * 13 + from.Month) * 32 + from.Day) * 25 + from.Hour) * (_cacheLifeHoursCount + 1) + hoursLength;
             return key;
         }
     }
