@@ -39,7 +39,7 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
             _tableClient = CloudStorageAccount.Parse(connectionStringManager.CurrentValue).CreateCloudTableClient();
         }
 
-        public async Task UpdateTradeVolumesForBothAssetsAsync(
+        public async Task NotThreadSafeTradeVolumesUpdateAsync(
             DateTime dateTime,
             string clientId,
             string baseAssetId,

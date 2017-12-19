@@ -31,7 +31,7 @@ namespace Lykke.Service.TradeVolumes.Services
                 if (_possibleTableNamesDict.ContainsKey(asset))
                     continue;
 
-                var possibleTableNames = new List<string>(assets.Count - 1);
+                var possibleTableNames = new List<string>(assetIds.Count - 1);
                 foreach (var asset2 in assetIds)
                 {
                     if (asset == asset2)

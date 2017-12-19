@@ -23,8 +23,8 @@ namespace Lykke.Service.TradeVolumes.Controllers
         /// Calculates trade volume of assetId within specified time period.
         /// </summary>
         /// <param name="assetId">Asset Id</param>
-        /// <param name="fromDate">Start DateTime (Inclusive)</param>
-        /// <param name="toDate">Finish DateTime (Exclusive)</param>
+        /// <param name="fromDate">Start DateTime (Inclusive) with hour precision</param>
+        /// <param name="toDate">Finish DateTime (Exclusive) with hour precision</param>
         [HttpGet("asset/{assetId}/all/{fromDate}/{toDate}")]
         [SwaggerOperation("GetPeriodAssetTradeVolume")]
         [ProducesResponseType(typeof(AssetTradeVolumeResponse), (int)HttpStatusCode.OK)]
@@ -44,8 +44,8 @@ namespace Lykke.Service.TradeVolumes.Controllers
         /// Calculates trade volume of assetPairId within specified time period.
         /// </summary>
         /// <param name="assetPairId">AssetPair Id</param>
-        /// <param name="fromDate">Start DateTime (Inclusive)</param>
-        /// <param name="toDate">Finish DateTime (Exclusive)</param>
+        /// <param name="fromDate">Start DateTime (Inclusive) with hour precision</param>
+        /// <param name="toDate">Finish DateTime (Exclusive) with hour precision</param>
         [HttpGet("pair/{assetPairId}/all/{fromDate}/{toDate}")]
         [SwaggerOperation("GetPeriodAssetPairTradeVolume")]
         [ProducesResponseType(typeof(AssetPairTradeVolumeResponse), (int)HttpStatusCode.OK)]
@@ -66,8 +66,8 @@ namespace Lykke.Service.TradeVolumes.Controllers
         /// </summary>
         /// <param name="assetId">Asset Id</param>
         /// <param name="clientId">Client Id</param>
-        /// <param name="fromDate">Start DateTime (Inclusive)</param>
-        /// <param name="toDate">Finish DateTime (Exclusive)</param>
+        /// <param name="fromDate">Start DateTime (Inclusive) with hour precision</param>
+        /// <param name="toDate">Finish DateTime (Exclusive) with hour precision</param>
         [HttpGet("asset/{assetId}/{clientId}/{fromDate}/{toDate}")]
         [SwaggerOperation("GetPeriodClientAssetTradeVolume")]
         [ProducesResponseType(typeof(AssetTradeVolumeResponse), (int)HttpStatusCode.OK)]
@@ -117,8 +117,8 @@ namespace Lykke.Service.TradeVolumes.Controllers
         /// </summary>
         /// <param name="assetPairId">AssetPair Id</param>
         /// <param name="clientId">Client Id</param>
-        /// <param name="fromDate">Start DateTime (Inclusive)</param>
-        /// <param name="toDate">Finish DateTime (Exclusive)</param>
+        /// <param name="fromDate">Start DateTime (Inclusive) with hour precision</param>
+        /// <param name="toDate">Finish DateTime (Exclusive) with hour precision</param>
         [HttpGet("pair/{assetPairId}/{clientId}/{fromDate}/{toDate}")]
         [SwaggerOperation("GetPeriodClientAssetPairTradeVolume")]
         [ProducesResponseType(typeof(AssetPairTradeVolumeResponse), (int)HttpStatusCode.OK)]
