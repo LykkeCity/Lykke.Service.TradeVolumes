@@ -35,11 +35,10 @@ namespace Lykke.Service.TradeVolumes.Services
             string assetId,
             DateTime from,
             DateTime to,
-            DateTime now,
             out double result)
         {
             int periodKey = GetPeriodKey(from, to);
-            if (IsCahedPeriod(from, now)
+            if (IsCahedPeriod(from)
                 && _assetVolumesCache.TryGetValue(clientId, out var clientDict)
                 && clientDict.TryGetValue(assetId, out var assetDict)
                 && assetDict.TryGetValue(periodKey, out result))
@@ -53,10 +52,9 @@ namespace Lykke.Service.TradeVolumes.Services
             string assetId,
             DateTime from,
             DateTime to,
-            DateTime now,
             double tradeVolume)
         {
-            if (!IsCahedPeriod(from, now))
+            if (!IsCahedPeriod(from))
                 return;
             if (!_assetVolumesCache.TryGetValue(clientId, out var clientDict))
             {
@@ -79,11 +77,10 @@ namespace Lykke.Service.TradeVolumes.Services
             string assetPairId,
             DateTime from,
             DateTime to,
-            DateTime now,
             out (double,double) result)
         {
             int periodKey = GetPeriodKey(from, to);
-            if (IsCahedPeriod(from, now)
+            if (IsCahedPeriod(from)
                 && _assetPairVolumesCache.TryGetValue(clientId, out var clientDict)
                 && clientDict.TryGetValue(assetPairId, out var assetPairDict)
                 && assetPairDict.TryGetValue(periodKey, out result))
@@ -97,10 +94,9 @@ namespace Lykke.Service.TradeVolumes.Services
             string assetPairId,
             DateTime from,
             DateTime to,
-            DateTime now,
             (double, double) tradeVolumes)
         {
-            if (!IsCahedPeriod(from, now))
+            if (!IsCahedPeriod(from))
                 return;
             if (!_assetPairVolumesCache.TryGetValue(clientId, out var clientDict))
             {
@@ -118,8 +114,9 @@ namespace Lykke.Service.TradeVolumes.Services
             assetPairDict.TryAdd(periodKey, tradeVolumes);
         }
 
-        private bool IsCahedPeriod(DateTime from, DateTime now)
+        private bool IsCahedPeriod(DateTime from)
         {
+            DateTime now = DateTime.UtcNow.RoundToHour();
             var periodHoursLength = (int)now.Subtract(from).TotalHours;
             return periodHoursLength <= _cacheLifeHoursCount;
         }

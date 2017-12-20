@@ -15,16 +15,23 @@ namespace Lykke.Service.TradeVolumes.Services
         private readonly ILog _log;
         private readonly ICachesManager _cachesManager;
 
+        private DateTime _lastProcessedDate;
+        private DateTime _lastWarningTime;
+        private TimeSpan _warningDelay;
+
         public TradeVolumesCalculator(
             IAssetsDictionary assetsDictionary,
             ICachesManager cachesManager,
             ITradeVolumesRepository tradeVolumesRepository,
+            TimeSpan warningDelay,
             ILog log)
         {
             _assetsDictionary = assetsDictionary;
             _tradeVolumesRepository = tradeVolumesRepository;
             _log = log;
             _cachesManager = cachesManager;
+            _lastProcessedDate = DateTime.UtcNow.Date;
+            _warningDelay = warningDelay;
         }
 
         public async Task AddTradeLogItemAsync(TradeLogItem item)
@@ -44,6 +51,19 @@ namespace Lykke.Service.TradeVolumes.Services
                 tradeVolume,
                 item.OppositeAsset,
                 oppositeTradeVolume);
+
+            if (item.DateTime > _lastProcessedDate)
+                _lastProcessedDate = item.DateTime;
+
+            DateTime now = DateTime.UtcNow;
+            if (now.Subtract(_lastProcessedDate) >= _warningDelay && now.Subtract(_lastWarningTime).TotalMinutes >= 1)
+            {
+                await _log.WriteWarningAsync(
+                    nameof(TradeVolumesCalculator),
+                    nameof(AddTradeLogItemAsync),
+                    $"Tradelog items are not ");
+                _lastWarningTime = now;
+            }
         }
 
         public async Task<(double, double)> GetPeriodAssetPairVolumeAsync(
@@ -53,16 +73,15 @@ namespace Lykke.Service.TradeVolumes.Services
             DateTime to)
         {
             clientId = ClientIdHashHelper.GetClientIdHash(clientId);
-            var now = DateTime.UtcNow.RoundToHour();
-            if (now < to)
-                to = now;
+            var lastProcessedDate = _lastProcessedDate.RoundToHour();
+            if (lastProcessedDate < to)
+                to = lastProcessedDate;
 
             if (_cachesManager.TryGetAssetPairTradeVolume(
                 clientId,
                 assetPairId,
                 from,
                 to,
-                now,
                 out (double, double) cachedResult))
                 return cachedResult;
 
@@ -86,7 +105,6 @@ namespace Lykke.Service.TradeVolumes.Services
                 assetPairId,
                 from,
                 to,
-                now,
                 result);
 
             return result;
@@ -99,16 +117,15 @@ namespace Lykke.Service.TradeVolumes.Services
             DateTime to)
         {
             clientId = ClientIdHashHelper.GetClientIdHash(clientId);
-            var now = DateTime.UtcNow.RoundToHour();
-            if (now < to)
-                to = now;
+            var lastProcessedDate = _lastProcessedDate.RoundToHour();
+            if (lastProcessedDate < to)
+                to = lastProcessedDate;
 
             if (_cachesManager.TryGetAssetTradeVolume(
                 clientId,
                 assetId,
                 from,
                 to,
-                now,
                 out double cachedResult))
                 return cachedResult;
 
@@ -124,7 +141,6 @@ namespace Lykke.Service.TradeVolumes.Services
                 assetId,
                 from,
                 to,
-                now,
                 result);
 
             return result;
