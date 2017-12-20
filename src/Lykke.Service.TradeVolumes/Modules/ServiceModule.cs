@@ -56,6 +56,11 @@ namespace Lykke.Service.TradeVolumes.Modules
                 .As<IAssetsService>()
                 .SingleInstance();
 
+            builder.RegisterType<CachesManager>()
+                .As<ICachesManager>()
+                .As<IStartable>()
+                .SingleInstance();
+
             builder.RegisterType<AssetsDictionary>()
                 .As<IAssetsDictionary>()
                 .SingleInstance();
@@ -65,7 +70,11 @@ namespace Lykke.Service.TradeVolumes.Modules
                 .As<ITradeVolumesRepository>()
                 .SingleInstance();
 
+            int warningHoursDelay = 1;
+            if (_settings.TradeVolumesService.WarningDelayInHours != 0)
+                warningHoursDelay = _settings.TradeVolumesService.WarningDelayInHours;
             builder.RegisterType<TradeVolumesCalculator>()
+                .WithParameter(TypedParameter.From(TimeSpan.FromHours(warningHoursDelay)))
                 .As<ITradeVolumesCalculator>()
                 .SingleInstance();
 

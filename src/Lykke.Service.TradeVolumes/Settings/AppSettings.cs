@@ -35,5 +35,7 @@
         public string RabbitMqConnString { get; set; }
 
         public string TradelogExchangeName { get; set; }
+
+        public int WarningDelayInHours { get; set; }
     }
 }
