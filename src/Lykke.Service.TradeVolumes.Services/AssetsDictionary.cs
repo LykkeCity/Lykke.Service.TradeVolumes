@@ -21,6 +21,7 @@ namespace Lykke.Service.TradeVolumes.Services
 
         public async Task<List<string>> GeneratePossibleTableNamesAsync(string assetId)
         {
+            assetId = assetId.Replace("-", "");
             if (_possibleTableNamesDict.ContainsKey(assetId))
                 return _possibleTableNamesDict[assetId];
 
