@@ -42,6 +42,20 @@ namespace Lykke.Service.TradeVolumes.Client
             };
         }
 
+        public async Task<AssetPairTradeVolumeResponse> GetAssetPairTradeVolumeAsync(string assetPairId, DateTime fromDate, DateTime toDate)
+        {
+            var result = await _service.GetPeriodAssetPairTradeVolumeAsync(
+                assetPairId,
+                fromDate,
+                toDate);
+            return new AssetPairTradeVolumeResponse
+            {
+                AssetPairId = result.AssetPairId,
+                BaseVolume = result.BaseVolume,
+                QuotingVolume = result.QuotingVolume,
+            };
+        }
+
         public async Task<AssetTradeVolumeResponse> GetClientAssetTradeVolumeAsync(string assetId, string clientId, DateTime fromDate, DateTime toDate)
         {
             var result = await _service.GetPeriodClientAssetTradeVolumeAsync(
@@ -57,20 +71,6 @@ namespace Lykke.Service.TradeVolumes.Client
             };
         }
 
-        public async Task<AssetPairTradeVolumeResponse> GetAssetPairTradeVolumeAsync(string assetPairId, DateTime fromDate, DateTime toDate)
-        {
-            var result = await _service.GetPeriodAssetPairTradeVolumeAsync(
-                assetPairId,
-                fromDate,
-                toDate);
-            return new AssetPairTradeVolumeResponse
-            {
-                AssetPairId = result.AssetPairId,
-                BaseVolume = result.BaseVolume,
-                QuotingVolume = result.QuotingVolume,
-            };
-        }
-
         public async Task<AssetPairTradeVolumeResponse> GetClientAssetPairTradeVolumeAsync(string assetPairId, string clientId, DateTime fromDate, DateTime toDate)
         {
             var result = await _service.GetPeriodClientAssetPairTradeVolumeAsync(
@@ -82,6 +82,37 @@ namespace Lykke.Service.TradeVolumes.Client
             {
                 AssetPairId = result.AssetPairId,
                 ClientId = result.ClientId,
+                BaseVolume = result.BaseVolume,
+                QuotingVolume = result.QuotingVolume,
+            };
+        }
+
+        public async Task<AssetTradeVolumeResponse> GetWalletAssetTradeVolumeAsync(string assetId, string walletId, DateTime fromDate, DateTime toDate)
+        {
+            var result = await _service.GetPeriodWalletAssetTradeVolumeAsync(
+                assetId,
+                walletId,
+                fromDate,
+                toDate);
+            return new AssetTradeVolumeResponse
+            {
+                AssetId = result.AssetId,
+                WalletId = result.WalletId,
+                Volume = result.Volume,
+            };
+        }
+
+        public async Task<AssetPairTradeVolumeResponse> GetWalletAssetPairTradeVolumeAsync(string assetPairId, string walletId, DateTime fromDate, DateTime toDate)
+        {
+            var result = await _service.GetPeriodWalletAssetPairTradeVolumeAsync(
+                assetPairId,
+                walletId,
+                fromDate,
+                toDate);
+            return new AssetPairTradeVolumeResponse
+            {
+                AssetPairId = result.AssetPairId,
+                WalletId = result.WalletId,
                 BaseVolume = result.BaseVolume,
                 QuotingVolume = result.QuotingVolume,
             };

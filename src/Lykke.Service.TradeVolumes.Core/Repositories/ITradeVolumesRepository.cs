@@ -7,11 +7,13 @@ namespace Lykke.Service.TradeVolumes.Core.Repositories
     {
         Task NotThreadSafeTradeVolumesUpdateAsync(
             DateTime dateTime,
-            string clientId,
+            string userId,
+            string walletId,
             string baseAssetId,
             double baseVolume,
             string quotingAssetId,
-            double? quotingVolume);
+            double? quotingVolume,
+            bool isUser);
         Task<double> GetPeriodClientVolumeAsync(
             string baseAssetId,
             string quotingAssetId,

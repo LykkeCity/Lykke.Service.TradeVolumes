@@ -53,10 +53,10 @@ namespace Lykke.Service.TradeVolumes.Client.AutorestClient
         /// Asset Id
         /// </param>
         /// <param name='fromDate'>
-        /// Start DateTime (Inclusive)
+        /// Start DateTime (Inclusive) with hour precision
         /// </param>
         /// <param name='toDate'>
-        /// Finish DateTime (Exclusive)
+        /// Finish DateTime (Exclusive) with hour precision
         /// </param>
         /// <param name='customHeaders'>
         /// The headers that will be added to request.
@@ -74,10 +74,10 @@ namespace Lykke.Service.TradeVolumes.Client.AutorestClient
         /// AssetPair Id
         /// </param>
         /// <param name='fromDate'>
-        /// Start DateTime (Inclusive)
+        /// Start DateTime (Inclusive) with hour precision
         /// </param>
         /// <param name='toDate'>
-        /// Finish DateTime (Exclusive)
+        /// Finish DateTime (Exclusive) with hour precision
         /// </param>
         /// <param name='customHeaders'>
         /// The headers that will be added to request.
@@ -98,10 +98,10 @@ namespace Lykke.Service.TradeVolumes.Client.AutorestClient
         /// Client Id
         /// </param>
         /// <param name='fromDate'>
-        /// Start DateTime (Inclusive)
+        /// Start DateTime (Inclusive) with hour precision
         /// </param>
         /// <param name='toDate'>
-        /// Finish DateTime (Exclusive)
+        /// Finish DateTime (Exclusive) with hour precision
         /// </param>
         /// <param name='customHeaders'>
         /// The headers that will be added to request.
@@ -122,10 +122,10 @@ namespace Lykke.Service.TradeVolumes.Client.AutorestClient
         /// Client Id
         /// </param>
         /// <param name='fromDate'>
-        /// Start DateTime (Inclusive)
+        /// Start DateTime (Inclusive) with hour precision
         /// </param>
         /// <param name='toDate'>
-        /// Finish DateTime (Exclusive)
+        /// Finish DateTime (Exclusive) with hour precision
         /// </param>
         /// <param name='customHeaders'>
         /// The headers that will be added to request.
@@ -134,6 +134,54 @@ namespace Lykke.Service.TradeVolumes.Client.AutorestClient
         /// The cancellation token.
         /// </param>
         Task<HttpOperationResponse<AssetPairTradeVolumeResponse>> GetPeriodClientAssetPairTradeVolumeWithHttpMessagesAsync(string assetPairId, string clientId, System.DateTime fromDate, System.DateTime toDate, Dictionary<string, List<string>> customHeaders = null, CancellationToken cancellationToken = default(CancellationToken));
+
+        /// <summary>
+        /// Calculates trade volume of assetId for walletId within specified
+        /// time period.
+        /// </summary>
+        /// <param name='assetId'>
+        /// Asset Id
+        /// </param>
+        /// <param name='walletId'>
+        /// Wallet Id
+        /// </param>
+        /// <param name='fromDate'>
+        /// Start DateTime (Inclusive) with hour precision
+        /// </param>
+        /// <param name='toDate'>
+        /// Finish DateTime (Exclusive) with hour precision
+        /// </param>
+        /// <param name='customHeaders'>
+        /// The headers that will be added to request.
+        /// </param>
+        /// <param name='cancellationToken'>
+        /// The cancellation token.
+        /// </param>
+        Task<HttpOperationResponse<AssetTradeVolumeResponse>> GetPeriodWalletAssetTradeVolumeWithHttpMessagesAsync(string assetId, string walletId, System.DateTime fromDate, System.DateTime toDate, Dictionary<string, List<string>> customHeaders = null, CancellationToken cancellationToken = default(CancellationToken));
+
+        /// <summary>
+        /// Calculates trade volume of assetPairId for walletId within
+        /// specified time period.
+        /// </summary>
+        /// <param name='assetPairId'>
+        /// AssetPair Id
+        /// </param>
+        /// <param name='walletId'>
+        /// Wallet Id
+        /// </param>
+        /// <param name='fromDate'>
+        /// Start DateTime (Inclusive) with hour precision
+        /// </param>
+        /// <param name='toDate'>
+        /// Finish DateTime (Exclusive) with hour precision
+        /// </param>
+        /// <param name='customHeaders'>
+        /// The headers that will be added to request.
+        /// </param>
+        /// <param name='cancellationToken'>
+        /// The cancellation token.
+        /// </param>
+        Task<HttpOperationResponse<AssetPairTradeVolumeResponse>> GetPeriodWalletAssetPairTradeVolumeWithHttpMessagesAsync(string assetPairId, string walletId, System.DateTime fromDate, System.DateTime toDate, Dictionary<string, List<string>> customHeaders = null, CancellationToken cancellationToken = default(CancellationToken));
 
     }
 }

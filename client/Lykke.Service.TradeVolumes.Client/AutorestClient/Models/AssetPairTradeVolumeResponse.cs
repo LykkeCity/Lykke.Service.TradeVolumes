@@ -26,9 +26,10 @@ namespace Lykke.Service.TradeVolumes.Client.AutorestClient.Models
         /// Initializes a new instance of the AssetPairTradeVolumeResponse
         /// class.
         /// </summary>
-        public AssetPairTradeVolumeResponse(double baseVolume, double quotingVolume, string clientId = default(string), string assetPairId = default(string))
+        public AssetPairTradeVolumeResponse(double baseVolume, double quotingVolume, string clientId = default(string), string walletId = default(string), string assetPairId = default(string))
         {
             ClientId = clientId;
+            WalletId = walletId;
             AssetPairId = assetPairId;
             BaseVolume = baseVolume;
             QuotingVolume = quotingVolume;
@@ -44,6 +45,11 @@ namespace Lykke.Service.TradeVolumes.Client.AutorestClient.Models
         /// </summary>
         [JsonProperty(PropertyName = "ClientId")]
         public string ClientId { get; set; }
+
+        /// <summary>
+        /// </summary>
+        [JsonProperty(PropertyName = "WalletId")]
+        public string WalletId { get; set; }
 
         /// <summary>
         /// </summary>

@@ -3,11 +3,11 @@ using System.Text;
 
 namespace Lykke.Service.TradeVolumes.Services
 {
-    internal static class ClientIdHashHelper
+    public static class ClientIdHashHelper
     {
         private static readonly SHA1 _sha = SHA1.Create();
 
-        internal static string GetClientIdHash(string clientId)
+        public static string GetClientIdHash(string clientId)
         {
             if (string.IsNullOrWhiteSpace(clientId))
                 return clientId;

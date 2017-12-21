@@ -4,6 +4,8 @@
     {
         public string ClientId { get; set; }
 
+        public string WalletId { get; set; }
+
         public string AssetId { get; set; }
 
         public double Volume { get; set; }

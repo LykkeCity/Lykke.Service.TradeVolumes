@@ -47,10 +47,33 @@ namespace Lykke.Service.TradeVolumes.Services
             await _tradeVolumesRepository.NotThreadSafeTradeVolumesUpdateAsync(
                 item.DateTime,
                 item.UserId,
+                item.WalletId,
                 item.Asset,
                 tradeVolume,
                 item.OppositeAsset,
-                oppositeTradeVolume);
+                oppositeTradeVolume,
+                true);
+
+            if (item.WalletId != item.UserId)
+            {
+                (tradeVolume, oppositeTradeVolume) = await _tradeVolumesRepository.GetClientPairValuesAsync(
+                item.DateTime,
+                item.WalletId,
+                item.Asset,
+                item.OppositeAsset);
+
+                tradeVolume += (double)item.Volume;
+                oppositeTradeVolume += item.OppositeVolume.HasValue ? (double)item.OppositeVolume.Value : 0;
+                await _tradeVolumesRepository.NotThreadSafeTradeVolumesUpdateAsync(
+                    item.DateTime,
+                    item.UserId,
+                    item.WalletId,
+                    item.Asset,
+                    tradeVolume,
+                    item.OppositeAsset,
+                    oppositeTradeVolume,
+                    false);
+            }
 
             if (item.DateTime > _lastProcessedDate)
                 _lastProcessedDate = item.DateTime;
@@ -72,7 +95,6 @@ namespace Lykke.Service.TradeVolumes.Services
             DateTime from,
             DateTime to)
         {
-            clientId = ClientIdHashHelper.GetClientIdHash(clientId);
             var lastProcessedDate = _lastProcessedDate.RoundToHour();
             if (lastProcessedDate < to)
                 to = lastProcessedDate;
@@ -116,7 +138,6 @@ namespace Lykke.Service.TradeVolumes.Services
             DateTime from,
             DateTime to)
         {
-            clientId = ClientIdHashHelper.GetClientIdHash(clientId);
             var lastProcessedDate = _lastProcessedDate.RoundToHour();
             if (lastProcessedDate < to)
                 to = lastProcessedDate;

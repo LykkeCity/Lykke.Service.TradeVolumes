@@ -41,19 +41,31 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
 
         public async Task NotThreadSafeTradeVolumesUpdateAsync(
             DateTime dateTime,
-            string clientId,
+            string userId,
+            string walletId,
             string baseAssetId,
             double baseVolume,
             string quotingAssetId,
-            double? quotingVolume)
+            double? quotingVolume,
+            bool isUser)
         {
-            var baseEntity = TradeVolumeEntity.Create(
-                dateTime,
-                clientId,
-                baseAssetId,
-                baseVolume,
-                quotingAssetId,
-                quotingVolume);
+            var baseEntity = isUser
+                ? TradeVolumeEntity.ByUser.Create(
+                    dateTime,
+                    userId,
+                    walletId,
+                    baseAssetId,
+                    baseVolume,
+                    quotingAssetId,
+                    quotingVolume)
+                : TradeVolumeEntity.ByWallet.Create(
+                    dateTime,
+                    userId,
+                    walletId,
+                    baseAssetId,
+                    baseVolume,
+                    quotingAssetId,
+                    quotingVolume);
             var baseStorage = GetStorage(baseAssetId, quotingAssetId);
             await baseStorage.InsertOrReplaceAsync(baseEntity);
         }
@@ -139,7 +151,7 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
                 filter = TableQuery.CombineFilters(filter, TableOperators.And, rowKeyFilter);
             }
             var query = new TableQuery<TradeVolumeEntity>().Where(filter);
-            var items = await storage.WhereAsync(query);
+            var items = await storage.WhereAsync(query, i => clientId != Constants.AllClients || i.RowKey == i.UserId);
             double result = items.Sum(i => i.BaseVolume.HasValue ? i.BaseVolume.Value : 0);
             if (clientId == Constants.AllClients)
                 result /= 2;
