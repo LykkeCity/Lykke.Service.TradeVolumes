@@ -30,7 +30,7 @@ namespace Lykke.Service.TradeVolumes.Services
             _tradeVolumesRepository = tradeVolumesRepository;
             _log = log;
             _cachesManager = cachesManager;
-            _lastProcessedDate = DateTime.UtcNow.Date;
+            _lastProcessedDate = DateTime.UtcNow.RoundToHour();
             _warningDelay = warningDelay;
         }
 
