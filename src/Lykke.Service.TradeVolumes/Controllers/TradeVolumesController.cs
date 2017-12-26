@@ -93,21 +93,29 @@ namespace Lykke.Service.TradeVolumes.Controllers
                 return StatusCode(
                     (int)HttpStatusCode.BadRequest,
                     ErrorResponse.Create($"fromDate must be earlier than toDate"));
+            try
+            {
+                double tradeVolume = await GetPeriodAssetTradeVolume(
+                    assetId,
+                    clientId,
+                    fromDate,
+                    toDate,
+                    true);
 
-            double tradeVolume = await GetPeriodAssetTradeVolume(
-                assetId,
-                clientId,
-                fromDate,
-                toDate,
-                true);
-
-            return Ok(
-                new AssetTradeVolumeResponse
-                {
-                    AssetId = assetId,
-                    ClientId = clientId,
-                    Volume = tradeVolume,
-                });
+                return Ok(
+                    new AssetTradeVolumeResponse
+                    {
+                        AssetId = assetId,
+                        ClientId = clientId,
+                        Volume = tradeVolume,
+                    });
+            }
+            catch (UnknownAssetException ex)
+            {
+                return StatusCode(
+                    (int)HttpStatusCode.BadRequest,
+                    ErrorResponse.Create(ex.Message));
+            }
         }
 
         /// <summary>
@@ -159,7 +167,7 @@ namespace Lykke.Service.TradeVolumes.Controllers
                         QuotingVolume = quotingVolume,
                     });
             }
-            catch (UnknownPairException ex)
+            catch (Exception ex) when (ex is UnknownPairException || ex is UnknownAssetException)
             {
                 return StatusCode(
                     (int)HttpStatusCode.BadRequest,
@@ -198,20 +206,29 @@ namespace Lykke.Service.TradeVolumes.Controllers
                     (int)HttpStatusCode.BadRequest,
                     ErrorResponse.Create($"fromDate must be earlier than toDate"));
 
-            double tradeVolume = await GetPeriodAssetTradeVolume(
-                assetId,
-                walletId,
-                fromDate,
-                toDate,
-                false);
+            try
+            {
+                double tradeVolume = await GetPeriodAssetTradeVolume(
+                    assetId,
+                    walletId,
+                    fromDate,
+                    toDate,
+                    false);
 
-            return Ok(
-                new AssetTradeVolumeResponse
-                {
-                    AssetId = assetId,
-                    WalletId = walletId,
-                    Volume = tradeVolume,
-                });
+                return Ok(
+                    new AssetTradeVolumeResponse
+                    {
+                        AssetId = assetId,
+                        WalletId = walletId,
+                        Volume = tradeVolume,
+                    });
+            }
+            catch (UnknownAssetException ex)
+            {
+                return StatusCode(
+                    (int)HttpStatusCode.BadRequest,
+                    ErrorResponse.Create(ex.Message));
+            }
         }
 
         /// <summary>
@@ -263,7 +280,7 @@ namespace Lykke.Service.TradeVolumes.Controllers
                         QuotingVolume = quotingVolume,
                     });
             }
-            catch (UnknownPairException ex)
+            catch (Exception ex) when (ex is UnknownPairException || ex is UnknownAssetException)
             {
                 return StatusCode(
                     (int)HttpStatusCode.BadRequest,
