@@ -100,7 +100,8 @@ namespace Lykke.Service.TradeVolumes.Controllers
                 assetId,
                 hashedClientId,
                 fromDate,
-                toDate);
+                toDate,
+                true);
 
             return Ok(
                 new AssetTradeVolumeResponse
@@ -150,7 +151,8 @@ namespace Lykke.Service.TradeVolumes.Controllers
                     assetPairId,
                     hashedClientId,
                     fromDate,
-                    toDate);
+                    toDate,
+                    true);
 
                 return Ok(
                     new AssetPairTradeVolumeResponse
@@ -204,7 +206,8 @@ namespace Lykke.Service.TradeVolumes.Controllers
                 assetId,
                 walletId,
                 fromDate,
-                toDate);
+                toDate,
+                false);
 
             return Ok(
                 new AssetTradeVolumeResponse
@@ -252,7 +255,8 @@ namespace Lykke.Service.TradeVolumes.Controllers
                     assetPairId,
                     walletId,
                     fromDate,
-                    toDate);
+                    toDate,
+                    false);
 
                 return Ok(
                     new AssetPairTradeVolumeResponse
@@ -275,7 +279,8 @@ namespace Lykke.Service.TradeVolumes.Controllers
             string assetId,
             string id,
             DateTime fromDate,
-            DateTime toDate)
+            DateTime toDate,
+            bool isUser)
         {
             if (fromDate.Kind == DateTimeKind.Unspecified)
                 fromDate = DateTime.SpecifyKind(fromDate, DateTimeKind.Utc);
@@ -292,7 +297,8 @@ namespace Lykke.Service.TradeVolumes.Controllers
                 assetId,
                 id,
                 fromDate,
-                toDate);
+                toDate,
+                isUser);
 
             return result;
         }
@@ -301,7 +307,8 @@ namespace Lykke.Service.TradeVolumes.Controllers
             string assetPairId,
             string id,
             DateTime fromDate,
-            DateTime toDate)
+            DateTime toDate,
+            bool isUser)
         {
             if (fromDate.Kind == DateTimeKind.Unspecified)
                 fromDate = DateTime.SpecifyKind(fromDate, DateTimeKind.Utc);
@@ -318,7 +325,8 @@ namespace Lykke.Service.TradeVolumes.Controllers
                 assetPairId,
                 id,
                 fromDate,
-                toDate);
+                toDate,
+                isUser);
             return result;
         }
     }

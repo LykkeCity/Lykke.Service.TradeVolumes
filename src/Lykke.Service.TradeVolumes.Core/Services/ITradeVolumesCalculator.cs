@@ -12,12 +12,14 @@ namespace Lykke.Service.TradeVolumes.Core.Services
             string assetId,
             string clientId,
             DateTime from,
-            DateTime to);
+            DateTime to,
+            bool isUser);
 
         Task<(double, double)> GetPeriodAssetPairVolumeAsync(
             string assetPairId,
             string clientId,
             DateTime from,
-            DateTime to);
+            DateTime to,
+            bool isUser);
     }
 }

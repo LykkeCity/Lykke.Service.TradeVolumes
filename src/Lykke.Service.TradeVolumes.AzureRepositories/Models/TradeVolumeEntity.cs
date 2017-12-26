@@ -48,7 +48,7 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories.Models
 
             public static string GenerateRowKey(string userId)
             {
-                return userId;
+                return $"User_{userId}";
             }
         }
 
@@ -79,18 +79,13 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories.Models
 
             public static string GenerateRowKey(string walletId)
             {
-                return walletId;
+                return $"Wallet_{walletId}";
             }
         }
 
         public static string GeneratePartitionKey(DateTime datetime)
         {
             return datetime.ToString(_dateTimeFormat);
-        }
-
-        public static string GenerateRowKey(string id)
-        {
-            return id;
         }
     }
 }

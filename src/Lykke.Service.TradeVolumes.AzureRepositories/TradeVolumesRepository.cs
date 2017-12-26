@@ -75,7 +75,8 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
             string quotingAssetId,
             string clientId,
             DateTime from,
-            DateTime to)
+            DateTime to,
+            bool isUser)
         {
             var tradeVolumes = new List<double>();
             if (quotingAssetId == null)
@@ -83,33 +84,38 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
                     from,
                     to,
                     clientId,
-                    baseAssetId);
+                    baseAssetId,
+                    isUser);
 
             var storage = GetStorage(baseAssetId, quotingAssetId);
             return await GetTableTradeVolumeAsync(
                 from,
                 to,
                 clientId,
-                storage);
+                storage,
+                isUser);
         }
 
         public async Task<(double, double)> GetClientPairValuesAsync(
             DateTime date,
             string clientId,
             string baseAssetId,
-            string quotingAssetId)
+            string quotingAssetId,
+            bool isUser)
         {
             double baseTradeVolume = await GetTradeVolumeAsync(
                 date,
                 clientId,
                 baseAssetId,
-                quotingAssetId);
+                quotingAssetId,
+                isUser);
 
             double quotingTradeVolume = await GetTradeVolumeAsync(
                 date,
                 clientId,
                 quotingAssetId,
-                baseAssetId);
+                baseAssetId,
+                isUser);
 
             return (baseTradeVolume, quotingTradeVolume);
         }
@@ -118,12 +124,15 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
             DateTime date,
             string clientId,
             string baseAssetId,
-            string quotingAssetId)
+            string quotingAssetId,
+            bool isUser)
         {
             var storage = GetStorage(baseAssetId, quotingAssetId);
             var result = await storage.GetDataAsync(
                 TradeVolumeEntity.GeneratePartitionKey(date),
-                TradeVolumeEntity.GenerateRowKey(clientId));
+                isUser
+                    ? TradeVolumeEntity.ByUser.GenerateRowKey(clientId)
+                    : TradeVolumeEntity.ByWallet.GenerateRowKey(clientId));
             return result != null ? (result.BaseVolume.HasValue ? result.BaseVolume.Value : 0) : 0;
         }
 
@@ -131,7 +140,8 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
             DateTime from,
             DateTime to,
             string clientId,
-            INoSQLTableStorage<TradeVolumeEntity> storage)
+            INoSQLTableStorage<TradeVolumeEntity> storage,
+            bool isUser)
         {
             string fromFilter = TableQuery.GenerateFilterCondition(
                 _partitionKey,
@@ -147,7 +157,9 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
                 var rowKeyFilter = TableQuery.GenerateFilterCondition(
                     _rowKey,
                     QueryComparisons.Equal,
-                    TradeVolumeEntity.GenerateRowKey(clientId));
+                    isUser
+                        ? TradeVolumeEntity.ByUser.GenerateRowKey(clientId)
+                        : TradeVolumeEntity.ByWallet.GenerateRowKey(clientId));
                 filter = TableQuery.CombineFilters(filter, TableOperators.And, rowKeyFilter);
             }
             var query = new TableQuery<TradeVolumeEntity>().Where(filter);
@@ -162,7 +174,8 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
             DateTime from,
             DateTime to,
             string clientId,
-            string assetId)
+            string assetId,
+            bool isUser)
         {
             var tables = await GetTableNamesAsync(assetId);
             var possibleTableNames = await _assetsDictionary.GeneratePossibleTableNamesAsync(assetId);
@@ -183,7 +196,8 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
                         to,
                         clientId,
                         t,
-                        tradeVolumes)));
+                        tradeVolumes,
+                        isUser)));
             }
             return tradeVolumes.Sum();
         }
@@ -193,7 +207,8 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
             DateTime to,
             string clientId,
             string tableName,
-            List<double> tradeVolumes)
+            List<double> tradeVolumes,
+            bool isUser)
         {
             var storage = AzureTableStorage<TradeVolumeEntity>.Create(
                 _connectionStringManager,
@@ -204,7 +219,8 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
                 from,
                 to,
                 clientId,
-                storage);
+                storage,
+                isUser);
             if (tradeVolume == 0)
                 return;
             await _lock.WaitAsync();
@@ -239,8 +255,8 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
 
         private INoSQLTableStorage<TradeVolumeEntity> GetStorage(string baseAssetId, string quotingAssetId)
         {
-            baseAssetId = baseAssetId.Replace("-", "");
-            quotingAssetId = quotingAssetId.Replace("-", "");
+            baseAssetId = baseAssetId.Replace("-", "").ToUpper();
+            quotingAssetId = quotingAssetId.Replace("-", "").ToUpper();
             string tableName = string.Format(Constants.TableNameFormat, baseAssetId, quotingAssetId);
             return AzureTableStorage<TradeVolumeEntity>.Create(
                 _connectionStringManager,

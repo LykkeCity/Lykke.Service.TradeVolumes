@@ -40,8 +40,8 @@ namespace Lykke.Service.TradeVolumes.Services
 
                     string possibleTableName = string.Format(
                         Constants.TableNameFormat,
-                        asset,
-                        asset2);
+                        asset.ToUpper(),
+                        asset2.ToUpper());
                     possibleTableNames.Add(possibleTableName);
                 }
                 _possibleTableNamesDict.Add(asset, possibleTableNames);

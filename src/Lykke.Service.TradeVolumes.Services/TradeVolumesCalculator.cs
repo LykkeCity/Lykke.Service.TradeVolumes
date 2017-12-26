@@ -40,7 +40,8 @@ namespace Lykke.Service.TradeVolumes.Services
                 item.DateTime,
                 item.UserId,
                 item.Asset,
-                item.OppositeAsset);
+                item.OppositeAsset,
+                true);
 
             tradeVolume += (double)item.Volume;
             oppositeTradeVolume += item.OppositeVolume.HasValue ? (double)item.OppositeVolume.Value : 0;
@@ -54,26 +55,24 @@ namespace Lykke.Service.TradeVolumes.Services
                 oppositeTradeVolume,
                 true);
 
-            if (item.WalletId != item.UserId)
-            {
-                (tradeVolume, oppositeTradeVolume) = await _tradeVolumesRepository.GetClientPairValuesAsync(
+            (tradeVolume, oppositeTradeVolume) = await _tradeVolumesRepository.GetClientPairValuesAsync(
                 item.DateTime,
                 item.WalletId,
                 item.Asset,
-                item.OppositeAsset);
+                item.OppositeAsset,
+                false);
 
-                tradeVolume += (double)item.Volume;
-                oppositeTradeVolume += item.OppositeVolume.HasValue ? (double)item.OppositeVolume.Value : 0;
-                await _tradeVolumesRepository.NotThreadSafeTradeVolumesUpdateAsync(
-                    item.DateTime,
-                    item.UserId,
-                    item.WalletId,
-                    item.Asset,
-                    tradeVolume,
-                    item.OppositeAsset,
-                    oppositeTradeVolume,
-                    false);
-            }
+            tradeVolume += (double)item.Volume;
+            oppositeTradeVolume += item.OppositeVolume.HasValue ? (double)item.OppositeVolume.Value : 0;
+            await _tradeVolumesRepository.NotThreadSafeTradeVolumesUpdateAsync(
+                item.DateTime,
+                item.UserId,
+                item.WalletId,
+                item.Asset,
+                tradeVolume,
+                item.OppositeAsset,
+                oppositeTradeVolume,
+                false);
 
             if (item.DateTime > _lastProcessedDate)
                 _lastProcessedDate = item.DateTime;
@@ -93,14 +92,15 @@ namespace Lykke.Service.TradeVolumes.Services
             string assetPairId,
             string clientId,
             DateTime from,
-            DateTime to)
+            DateTime to,
+            bool isUser)
         {
             var lastProcessedDate = _lastProcessedDate.RoundToHour();
             if (lastProcessedDate < to)
                 to = lastProcessedDate;
 
             if (_cachesManager.TryGetAssetPairTradeVolume(
-                clientId,
+                $"{clientId}_{isUser}",
                 assetPairId,
                 from,
                 to,
@@ -113,17 +113,19 @@ namespace Lykke.Service.TradeVolumes.Services
                 quotingAssetId,
                 clientId,
                 from,
-                to);
+                to,
+                isUser);
             double quotingVolume = await _tradeVolumesRepository.GetPeriodClientVolumeAsync(
                 quotingAssetId,
                 baseAssetId,
                 clientId,
                 from,
-                to);
+                to,
+                isUser);
             var result = (baseVolume, quotingVolume);
 
             _cachesManager.AddAssetPairTradeVolume(
-                clientId,
+                $"{clientId}_{isUser}",
                 assetPairId,
                 from,
                 to,
@@ -136,14 +138,15 @@ namespace Lykke.Service.TradeVolumes.Services
             string assetId,
             string clientId,
             DateTime from,
-            DateTime to)
+            DateTime to,
+            bool isUser)
         {
             var lastProcessedDate = _lastProcessedDate.RoundToHour();
             if (lastProcessedDate < to)
                 to = lastProcessedDate;
 
             if (_cachesManager.TryGetAssetTradeVolume(
-                clientId,
+                $"{clientId}_{isUser}",
                 assetId,
                 from,
                 to,
@@ -155,10 +158,11 @@ namespace Lykke.Service.TradeVolumes.Services
                 null,
                 clientId,
                 from,
-                to);
+                to,
+                isUser);
 
             _cachesManager.AddAssetTradeVolume(
-                clientId,
+                $"{clientId}_{isUser}",
                 assetId,
                 from,
                 to,
