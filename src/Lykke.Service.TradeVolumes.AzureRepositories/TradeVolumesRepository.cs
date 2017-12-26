@@ -102,18 +102,21 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
         public async Task<(double, double, double, double)> GetClientPairValuesAsync(
             DateTime date,
             string clientId,
+            string walletId,
             string baseAssetId,
             string quotingAssetId)
         {
             (double baseUserVolume, double baseWalletVolume) = await GetTradeVolumeAsync(
                 date,
                 clientId,
+                walletId,
                 baseAssetId,
                 quotingAssetId);
 
             (double quotingUserVolume, double quotingWalletVolume) = await GetTradeVolumeAsync(
                 date,
                 clientId,
+                walletId,
                 quotingAssetId,
                 baseAssetId);
 
@@ -123,12 +126,13 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
         private async Task<(double, double)> GetTradeVolumeAsync(
             DateTime date,
             string clientId,
+            string walletId,
             string baseAssetId,
             string quotingAssetId)
         {
             var storage = GetStorage(baseAssetId, quotingAssetId);
             string userRowKey = TradeVolumeEntity.ByUser.GenerateRowKey(clientId);
-            string walletRowKey = TradeVolumeEntity.ByWallet.GenerateRowKey(clientId);
+            string walletRowKey = TradeVolumeEntity.ByWallet.GenerateRowKey(walletId);
             var items = await storage.GetDataAsync(
                 TradeVolumeEntity.GeneratePartitionKey(date),
                 new List<string> { userRowKey, walletRowKey });

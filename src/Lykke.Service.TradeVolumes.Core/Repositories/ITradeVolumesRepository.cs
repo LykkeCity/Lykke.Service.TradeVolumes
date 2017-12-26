@@ -25,6 +25,7 @@ namespace Lykke.Service.TradeVolumes.Core.Repositories
         Task<(double, double, double, double)> GetClientPairValuesAsync(
             DateTime date,
             string clientId,
+            string walletId,
             string baseAssetId,
             string quotingAssetId);
     }

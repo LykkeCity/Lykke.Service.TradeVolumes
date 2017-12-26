@@ -40,6 +40,7 @@ namespace Lykke.Service.TradeVolumes.Services
                 await _tradeVolumesRepository.GetClientPairValuesAsync(
                     item.DateTime,
                     item.UserId,
+                    item.WalletId,
                     item.Asset,
                     item.OppositeAsset);
 
