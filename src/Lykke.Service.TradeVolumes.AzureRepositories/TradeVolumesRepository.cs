@@ -172,7 +172,8 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
                 filter = TableQuery.CombineFilters(filter, TableOperators.And, rowKeyFilter);
             }
             var query = new TableQuery<TradeVolumeEntity>().Where(filter);
-            var items = await storage.WhereAsync(query, i => clientId != Constants.AllClients || i.RowKey == i.UserId);
+            var items = await storage.WhereAsync(query, i =>
+                clientId != Constants.AllClients || i.RowKey == TradeVolumeEntity.ByUser.GenerateRowKey(i.UserId));
             double result = items.Sum(i => i.BaseVolume.HasValue ? i.BaseVolume.Value : 0);
             if (clientId == Constants.AllClients)
                 result /= 2;
