@@ -10,10 +10,11 @@ namespace Lykke.Service.TradeVolumes.Core.Repositories
             string userId,
             string walletId,
             string baseAssetId,
-            double baseVolume,
             string quotingAssetId,
-            double? quotingVolume,
-            bool isUser);
+            double baseUserVolume,
+            double quotingUserVolume,
+            double baseWalletVolume,
+            double quotingWalletVolume);
         Task<double> GetPeriodClientVolumeAsync(
             string baseAssetId,
             string quotingAssetId,
@@ -21,11 +22,10 @@ namespace Lykke.Service.TradeVolumes.Core.Repositories
             DateTime from,
             DateTime to,
             bool isUser);
-        Task<(double, double)> GetClientPairValuesAsync(
+        Task<(double, double, double, double)> GetClientPairValuesAsync(
             DateTime date,
             string clientId,
             string baseAssetId,
-            string quotingAssetId,
-            bool isUser);
+            string quotingAssetId);
     }
 }

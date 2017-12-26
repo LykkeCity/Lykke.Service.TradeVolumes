@@ -44,30 +44,33 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
             string userId,
             string walletId,
             string baseAssetId,
-            double baseVolume,
             string quotingAssetId,
-            double? quotingVolume,
-            bool isUser)
+            double baseUserVolume,
+            double quotingUserVolume,
+            double baseWalletVolume,
+            double quotingWalletVolume)
         {
-            var baseEntity = isUser
-                ? TradeVolumeEntity.ByUser.Create(
+            var items = new List<TradeVolumeEntity>(2)
+            {
+                TradeVolumeEntity.ByUser.Create(
                     dateTime,
                     userId,
                     walletId,
                     baseAssetId,
-                    baseVolume,
+                    baseUserVolume,
                     quotingAssetId,
-                    quotingVolume)
-                : TradeVolumeEntity.ByWallet.Create(
+                    quotingUserVolume),
+                TradeVolumeEntity.ByWallet.Create(
                     dateTime,
                     userId,
                     walletId,
                     baseAssetId,
-                    baseVolume,
+                    baseWalletVolume,
                     quotingAssetId,
-                    quotingVolume);
+                    quotingWalletVolume)
+            };
             var baseStorage = GetStorage(baseAssetId, quotingAssetId);
-            await baseStorage.InsertOrReplaceAsync(baseEntity);
+            await baseStorage.InsertOrReplaceAsync(items);
         }
 
         public async Task<double> GetPeriodClientVolumeAsync(
@@ -96,44 +99,46 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
                 isUser);
         }
 
-        public async Task<(double, double)> GetClientPairValuesAsync(
+        public async Task<(double, double, double, double)> GetClientPairValuesAsync(
             DateTime date,
             string clientId,
             string baseAssetId,
-            string quotingAssetId,
-            bool isUser)
+            string quotingAssetId)
         {
-            double baseTradeVolume = await GetTradeVolumeAsync(
+            (double baseUserVolume, double baseWalletVolume) = await GetTradeVolumeAsync(
                 date,
                 clientId,
                 baseAssetId,
-                quotingAssetId,
-                isUser);
+                quotingAssetId);
 
-            double quotingTradeVolume = await GetTradeVolumeAsync(
+            (double quotingUserVolume, double quotingWalletVolume) = await GetTradeVolumeAsync(
                 date,
                 clientId,
                 quotingAssetId,
-                baseAssetId,
-                isUser);
+                baseAssetId);
 
-            return (baseTradeVolume, quotingTradeVolume);
+            return (baseUserVolume, quotingUserVolume, baseWalletVolume, quotingWalletVolume);
         }
 
-        private async Task<double> GetTradeVolumeAsync(
+        private async Task<(double, double)> GetTradeVolumeAsync(
             DateTime date,
             string clientId,
             string baseAssetId,
-            string quotingAssetId,
-            bool isUser)
+            string quotingAssetId)
         {
             var storage = GetStorage(baseAssetId, quotingAssetId);
-            var result = await storage.GetDataAsync(
+            string userRowKey = TradeVolumeEntity.ByUser.GenerateRowKey(clientId);
+            string walletRowKey = TradeVolumeEntity.ByWallet.GenerateRowKey(clientId);
+            var items = await storage.GetDataAsync(
                 TradeVolumeEntity.GeneratePartitionKey(date),
-                isUser
-                    ? TradeVolumeEntity.ByUser.GenerateRowKey(clientId)
-                    : TradeVolumeEntity.ByWallet.GenerateRowKey(clientId));
-            return result != null ? (result.BaseVolume.HasValue ? result.BaseVolume.Value : 0) : 0;
+                new List<string> { userRowKey, walletRowKey });
+            var userTradeVolume = items.FirstOrDefault(i => i.RowKey == userRowKey);
+            double userVolume = userTradeVolume != null && userTradeVolume.BaseVolume.HasValue
+                ? userTradeVolume.BaseVolume.Value : 0;
+            var walletTradeVolume = items.FirstOrDefault(i => i.RowKey == walletRowKey);
+            double walletVolume = walletTradeVolume != null && walletTradeVolume.BaseVolume.HasValue
+                ? walletTradeVolume.BaseVolume.Value : 0;
+            return (userVolume, walletVolume);
         }
 
         private async Task<double> GetTableTradeVolumeAsync(

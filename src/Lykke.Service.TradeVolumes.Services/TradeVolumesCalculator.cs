@@ -36,43 +36,28 @@ namespace Lykke.Service.TradeVolumes.Services
 
         public async Task AddTradeLogItemAsync(TradeLogItem item)
         {
-            (double tradeVolume, double oppositeTradeVolume) = await _tradeVolumesRepository.GetClientPairValuesAsync(
-                item.DateTime,
-                item.UserId,
-                item.Asset,
-                item.OppositeAsset,
-                true);
+            (var baseUserVolume, var quotingUserVolume, var baseWalletVolume, var quotingWalletVolume) =
+                await _tradeVolumesRepository.GetClientPairValuesAsync(
+                    item.DateTime,
+                    item.UserId,
+                    item.Asset,
+                    item.OppositeAsset);
 
-            tradeVolume += (double)item.Volume;
-            oppositeTradeVolume += item.OppositeVolume.HasValue ? (double)item.OppositeVolume.Value : 0;
+            baseUserVolume += (double)item.Volume;
+            quotingUserVolume += item.OppositeVolume.HasValue ? (double)item.OppositeVolume.Value : 0;
+            baseWalletVolume += (double)item.Volume;
+            quotingWalletVolume += item.OppositeVolume.HasValue ? (double)item.OppositeVolume.Value : 0;
+
             await _tradeVolumesRepository.NotThreadSafeTradeVolumesUpdateAsync(
                 item.DateTime,
                 item.UserId,
                 item.WalletId,
                 item.Asset,
-                tradeVolume,
                 item.OppositeAsset,
-                oppositeTradeVolume,
-                true);
-
-            (tradeVolume, oppositeTradeVolume) = await _tradeVolumesRepository.GetClientPairValuesAsync(
-                item.DateTime,
-                item.WalletId,
-                item.Asset,
-                item.OppositeAsset,
-                false);
-
-            tradeVolume += (double)item.Volume;
-            oppositeTradeVolume += item.OppositeVolume.HasValue ? (double)item.OppositeVolume.Value : 0;
-            await _tradeVolumesRepository.NotThreadSafeTradeVolumesUpdateAsync(
-                item.DateTime,
-                item.UserId,
-                item.WalletId,
-                item.Asset,
-                tradeVolume,
-                item.OppositeAsset,
-                oppositeTradeVolume,
-                false);
+                baseUserVolume,
+                quotingUserVolume,
+                baseWalletVolume,
+                quotingWalletVolume);
 
             if (item.DateTime > _lastProcessedDate)
                 _lastProcessedDate = item.DateTime;
