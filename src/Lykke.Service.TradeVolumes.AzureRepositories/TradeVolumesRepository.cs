@@ -148,7 +148,7 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
             bool isFirstRowFilter = true;
             foreach (var userWallet in userWallets)
             {
-                if (!isFirstRowFilter)
+                if (isFirstRowFilter)
                     isFirstRowFilter = false;
                 else
                     sb.Append(" or ");
