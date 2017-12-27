@@ -135,7 +135,7 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
             string userRowFilter = TableQuery.GenerateFilterCondition(_rowKey, QueryComparisons.Equal, userRowKey);
             string walletRowKey = TradeVolumeEntity.ByWallet.GenerateRowKey(walletId);
             string walletRowFilter = TableQuery.GenerateFilterCondition(_rowKey, QueryComparisons.Equal, walletRowKey);
-            string filter = TableQuery.CombineFilters(userRowFilter, TableOperators.Or, walletRowKey);
+            string filter = TableQuery.CombineFilters(userRowFilter, TableOperators.Or, walletRowFilter);
             string partitionFilter = TableQuery.GenerateFilterCondition(
                 _partitionKey,
                 QueryComparisons.Equal,
