@@ -1,8 +1,10 @@
 ﻿using System;
+using System.Linq;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Common;
 using Common.Log;
-using Lykke.Service.TradeVolumes.Core.Messages;
+using Lykke.Job.TradesConverter.Contract;
 using Lykke.Service.TradeVolumes.Core.Services;
 using Lykke.Service.TradeVolumes.Core.Repositories;
 
@@ -33,48 +35,64 @@ namespace Lykke.Service.TradeVolumes.Services
             _warningDelay = warningDelay;
         }
 
-        public async Task AddTradeLogItemAsync(TradeLogItem item)
+        public async Task AddTradeLogItemsAsync(List<TradeLogItem> items)
         {
-            (var baseUserVolume, var quotingUserVolume, var baseWalletVolume, var quotingWalletVolume) =
-                await _tradeVolumesRepository.GetClientPairValuesAsync(
-                    item.DateTime,
-                    item.UserId,
-                    item.WalletId,
-                    item.Asset,
-                    item.OppositeAsset);
+            var walletsDict = new Dictionary<string, string>(items.Count);
+            foreach (var item in items)
+            {
+                walletsDict[item.WalletId] = item.UserId;
+            }
 
-            baseUserVolume += (double)item.Volume;
-            quotingUserVolume += item.OppositeVolume.HasValue ? (double)item.OppositeVolume.Value : 0;
-            baseWalletVolume += (double)item.Volume;
-            quotingWalletVolume += item.OppositeVolume.HasValue ? (double)item.OppositeVolume.Value : 0;
+            var byHour = items.GroupBy(i => i.DateTime.Hour);
+            foreach (var hourGroup in byHour)
+            {
+                var byAsset = hourGroup.GroupBy(i => i.Asset);
+                foreach (var assetGroup in byAsset)
+                {
+                    var byOppositeAsset = assetGroup.GroupBy(i => i.OppositeAsset);
+                    foreach (var oppositeAssetGroup in byOppositeAsset)
+                    {
+                        var groupTime = oppositeAssetGroup.Max(i => i.DateTime);
+                        var walletsVolumes = await _tradeVolumesRepository.GetUserWalletsTradeVolumesAsync(
+                            groupTime,
+                            walletsDict.Select(i => (i.Value, i.Key)),
+                            assetGroup.Key,
+                            oppositeAssetGroup.Key);
 
-            await _tradeVolumesRepository.NotThreadSafeTradeVolumesUpdateAsync(
-                item.DateTime,
-                item.UserId,
-                item.WalletId,
-                item.Asset,
-                item.OppositeAsset,
-                baseUserVolume,
-                quotingUserVolume,
-                baseWalletVolume,
-                quotingWalletVolume);
+                        foreach (var item in oppositeAssetGroup)
+                        {
+                            var volumes = walletsVolumes[item.WalletId].Item2;
+                            volumes[0] += (double)item.Volume;
+                            volumes[1] += item.OppositeVolume.HasValue ? (double)item.OppositeVolume.Value : 0;
+                            volumes[2] += (double)item.Volume;
+                            volumes[3] += item.OppositeVolume.HasValue ? (double)item.OppositeVolume.Value : 0;
+                        }
 
+                        await _tradeVolumesRepository.NotThreadSafeTradeVolumesUpdateAsync(
+                            groupTime,
+                            assetGroup.Key,
+                            oppositeAssetGroup.Key,
+                            walletsVolumes);
+                    }
+                }
+            }
+
+            var dateTime = items.Max(i => i.DateTime);
             if (_lastProcessedDate.HasValue)
             {
-                var missingDelay = item.DateTime.Subtract(_lastProcessedDate.Value);
+                var missingDelay = dateTime.Subtract(_lastProcessedDate.Value);
                 var now = DateTime.UtcNow;
                 if (missingDelay >= _warningDelay && now.Subtract(_lastWarningTime).TotalMinutes >= 1)
                 {
                     await _log.WriteWarningAsync(
                         nameof(TradeVolumesCalculator),
-                        nameof(AddTradeLogItemAsync),
+                        nameof(AddTradeLogItemsAsync),
                         $"Tradelog items are missing for {missingDelay.TotalMinutes} minutes");
                     _lastWarningTime = now;
                 }
             }
-
-            if (!_lastProcessedDate.HasValue || item.DateTime > _lastProcessedDate.Value)
-                _lastProcessedDate = item.DateTime;
+            if (!_lastProcessedDate.HasValue || dateTime > _lastProcessedDate.Value)
+                _lastProcessedDate = dateTime;
         }
 
         public async Task<(double, double)> GetPeriodAssetPairVolumeAsync(

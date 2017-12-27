@@ -1,12 +1,13 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
-using Lykke.Service.TradeVolumes.Core.Messages;
+using Lykke.Job.TradesConverter.Contract;
 
 namespace Lykke.Service.TradeVolumes.Core.Services
 {
     public interface ITradeVolumesCalculator
     {
-        Task AddTradeLogItemAsync(TradeLogItem item);
+        Task AddTradeLogItemsAsync(List<TradeLogItem> items);
 
         Task<double> GetPeriodAssetVolumeAsync(
             string assetId,

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Linq;
 using System.Collections.Generic;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.WindowsAzure.Storage;
@@ -41,36 +42,67 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
 
         public async Task NotThreadSafeTradeVolumesUpdateAsync(
             DateTime dateTime,
-            string userId,
-            string walletId,
             string baseAssetId,
             string quotingAssetId,
-            double baseUserVolume,
-            double quotingUserVolume,
-            double baseWalletVolume,
-            double quotingWalletVolume)
+            Dictionary<string, (string, double[])> userWalletsData)
         {
-            var items = new List<TradeVolumeEntity>(2)
+            var items = new List<TradeVolumeEntity>(userWalletsData.Count * 2);
+            foreach (var userWalletData in userWalletsData)
             {
-                TradeVolumeEntity.ByUser.Create(
-                    dateTime,
-                    userId,
-                    walletId,
-                    baseAssetId,
-                    baseUserVolume,
-                    quotingAssetId,
-                    quotingUserVolume),
-                TradeVolumeEntity.ByWallet.Create(
-                    dateTime,
-                    userId,
-                    walletId,
-                    baseAssetId,
-                    baseWalletVolume,
-                    quotingAssetId,
-                    quotingWalletVolume)
-            };
+                string userId = userWalletData.Value.Item1;
+                string walletId = userWalletData.Key;
+                var userWalletTradeVolumes = userWalletData.Value.Item2;
+                items.Add(
+                    TradeVolumeEntity.ByUser.Create(
+                        dateTime,
+                        userId,
+                        walletId,
+                        baseAssetId,
+                        userWalletTradeVolumes[0],
+                        quotingAssetId,
+                        userWalletTradeVolumes[1]));
+                items.Add(
+                    TradeVolumeEntity.ByWallet.Create(
+                        dateTime,
+                        userId,
+                        walletId,
+                        baseAssetId,
+                        userWalletTradeVolumes[2],
+                        quotingAssetId,
+                        userWalletTradeVolumes[3]));
+            }
             var baseStorage = GetStorage(baseAssetId, quotingAssetId);
             await baseStorage.InsertOrReplaceAsync(items);
+        }
+
+        public async Task<Dictionary<string, (string, double[])>> GetUserWalletsTradeVolumesAsync(
+            DateTime date,
+            IEnumerable<(string, string)> userWallets,
+            string baseAssetId,
+            string quotingAssetId)
+        {
+            var baseWalletsData = await GetTradeVolumeAsync(
+                date,
+                userWallets,
+                baseAssetId,
+                quotingAssetId);
+
+            var quotingWalletData = await GetTradeVolumeAsync(
+                date,
+                userWallets,
+                quotingAssetId,
+                baseAssetId);
+
+            var result = new Dictionary<string, (string, double[])>();
+            foreach (var userWalletInfo in userWallets)
+            {
+                string walletId = userWalletInfo.Item2;
+                var baseData = baseWalletsData[walletId];
+                var quotingData = quotingWalletData[walletId];
+                result.Add(walletId, (userWalletInfo.Item1, new double[] { baseData.Item1, quotingData.Item1, baseData.Item2, quotingData.Item2 }));
+            }
+
+            return result;
         }
 
         public async Task<double> GetPeriodClientVolumeAsync(
@@ -99,57 +131,51 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
                 isUser);
         }
 
-        public async Task<(double, double, double, double)> GetClientPairValuesAsync(
+        private async Task<Dictionary<string, (double, double)>> GetTradeVolumeAsync(
             DateTime date,
-            string clientId,
-            string walletId,
-            string baseAssetId,
-            string quotingAssetId)
-        {
-            (double baseUserVolume, double baseWalletVolume) = await GetTradeVolumeAsync(
-                date,
-                clientId,
-                walletId,
-                baseAssetId,
-                quotingAssetId);
-
-            (double quotingUserVolume, double quotingWalletVolume) = await GetTradeVolumeAsync(
-                date,
-                clientId,
-                walletId,
-                quotingAssetId,
-                baseAssetId);
-
-            return (baseUserVolume, quotingUserVolume, baseWalletVolume, quotingWalletVolume);
-        }
-
-        private async Task<(double, double)> GetTradeVolumeAsync(
-            DateTime date,
-            string clientId,
-            string walletId,
+            IEnumerable<(string, string)> userWallets,
             string baseAssetId,
             string quotingAssetId)
         {
             var storage = GetStorage(baseAssetId, quotingAssetId);
-            string userRowKey = TradeVolumeEntity.ByUser.GenerateRowKey(clientId);
-            string userRowFilter = TableQuery.GenerateFilterCondition(_rowKey, QueryComparisons.Equal, userRowKey);
-            string walletRowKey = TradeVolumeEntity.ByWallet.GenerateRowKey(walletId);
-            string walletRowFilter = TableQuery.GenerateFilterCondition(_rowKey, QueryComparisons.Equal, walletRowKey);
-            string filter = TableQuery.CombineFilters(userRowFilter, TableOperators.Or, walletRowFilter);
+
+            
             string partitionFilter = TableQuery.GenerateFilterCondition(
                 _partitionKey,
                 QueryComparisons.Equal,
                 TradeVolumeEntity.GeneratePartitionKey(date));
-            filter = TableQuery.CombineFilters(partitionFilter, TableOperators.And, filter);
+            var sb = new StringBuilder($"({partitionFilter}) and (");
+            bool isFirstRowFilter = true;
+            foreach (var userWallet in userWallets)
+            {
+                if (!isFirstRowFilter)
+                    isFirstRowFilter = false;
+                else
+                    sb.Append(" or ");
+                string userRowKey = TradeVolumeEntity.ByUser.GenerateRowKey(userWallet.Item1);
+                string userRowFilter = TableQuery.GenerateFilterCondition(_rowKey, QueryComparisons.Equal, userRowKey);
+                string walletRowKey = TradeVolumeEntity.ByWallet.GenerateRowKey(userWallet.Item2);
+                string walletRowFilter = TableQuery.GenerateFilterCondition(_rowKey, QueryComparisons.Equal, walletRowKey);
+                sb.Append($"{userRowFilter} or {walletRowFilter}");
+            }
+            sb.Append(")");
+            string filter = sb.ToString();
             var query = new TableQuery<TradeVolumeEntity>().Where(filter);
             var items = await storage.WhereAsync(query);
-            var userTradeVolume = items.FirstOrDefault(i => i.RowKey == userRowKey);
-            double userVolume = userTradeVolume != null && userTradeVolume.BaseVolume.HasValue
-                ? userTradeVolume.BaseVolume.Value : 0;
-            var walletTradeVolume = items.FirstOrDefault(i => i.RowKey == walletRowKey);
-            double walletVolume = walletTradeVolume != null && walletTradeVolume.BaseVolume.HasValue
-                ? walletTradeVolume.BaseVolume.Value : 0;
-            return (userVolume, walletVolume);
+            var result = new Dictionary<string, (double, double)>();
+            foreach (var userWallet in userWallets)
+            {
+                string userRowKey = TradeVolumeEntity.ByUser.GenerateRowKey(userWallet.Item1);
+                string walletRowKey = TradeVolumeEntity.ByWallet.GenerateRowKey(userWallet.Item2);
+                var userTradeVolume = items.FirstOrDefault(i => i.RowKey == userRowKey);
+                double userVolume = userTradeVolume != null && userTradeVolume.BaseVolume.HasValue
+                    ? userTradeVolume.BaseVolume.Value : 0;
+                var walletTradeVolume = items.FirstOrDefault(i => i.RowKey == walletRowKey);
+                double walletVolume = walletTradeVolume != null && walletTradeVolume.BaseVolume.HasValue
+                    ? walletTradeVolume.BaseVolume.Value : 0;
+                result.Add(userWallet.Item2, (userVolume, walletVolume));
+            }
+            return result;
         }
 
         private async Task<double> GetTableTradeVolumeAsync(
