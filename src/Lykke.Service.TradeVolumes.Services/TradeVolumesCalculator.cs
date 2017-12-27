@@ -59,19 +59,22 @@ namespace Lykke.Service.TradeVolumes.Services
                 baseWalletVolume,
                 quotingWalletVolume);
 
-            if (!_lastProcessedDate.HasValue || item.DateTime > _lastProcessedDate)
-                _lastProcessedDate = item.DateTime;
-
-            DateTime now = DateTime.UtcNow;
-            var missingDelay = now.Subtract(_lastProcessedDate.Value);
-            if (missingDelay >= _warningDelay && now.Subtract(_lastWarningTime).TotalMinutes >= 1)
+            if (_lastProcessedDate.HasValue)
             {
-                await _log.WriteWarningAsync(
-                    nameof(TradeVolumesCalculator),
-                    nameof(AddTradeLogItemAsync),
-                    $"Tradelog items are missing for {missingDelay.TotalMinutes} minutes");
-                _lastWarningTime = now;
+                var missingDelay = item.DateTime.Subtract(_lastProcessedDate.Value);
+                var now = DateTime.UtcNow;
+                if (missingDelay >= _warningDelay && now.Subtract(_lastWarningTime).TotalMinutes >= 1)
+                {
+                    await _log.WriteWarningAsync(
+                        nameof(TradeVolumesCalculator),
+                        nameof(AddTradeLogItemAsync),
+                        $"Tradelog items are missing for {missingDelay.TotalMinutes} minutes");
+                    _lastWarningTime = now;
+                }
             }
+
+            if (!_lastProcessedDate.HasValue || item.DateTime > _lastProcessedDate.Value)
+                _lastProcessedDate = item.DateTime;
         }
 
         public async Task<(double, double)> GetPeriodAssetPairVolumeAsync(
