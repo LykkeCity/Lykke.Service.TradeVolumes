@@ -63,12 +63,13 @@ namespace Lykke.Service.TradeVolumes.Services
                 _lastProcessedDate = item.DateTime;
 
             DateTime now = DateTime.UtcNow;
-            if (now.Subtract(_lastProcessedDate.Value) >= _warningDelay && now.Subtract(_lastWarningTime).TotalMinutes >= 1)
+            var missingDelay = now.Subtract(_lastProcessedDate.Value);
+            if (missingDelay >= _warningDelay && now.Subtract(_lastWarningTime).TotalMinutes >= 1)
             {
                 await _log.WriteWarningAsync(
                     nameof(TradeVolumesCalculator),
                     nameof(AddTradeLogItemAsync),
-                    $"Tradelog items are not ");
+                    $"Tradelog items are missing for {missingDelay.TotalMinutes} minutes");
                 _lastWarningTime = now;
             }
         }
@@ -80,12 +81,11 @@ namespace Lykke.Service.TradeVolumes.Services
             DateTime to,
             bool isUser)
         {
-            if (_lastProcessedDate.HasValue)
-            {
-                var lastProcessedDate = _lastProcessedDate.Value.RoundToHour();
-                if (lastProcessedDate < to)
-                    to = lastProcessedDate;
-            }
+            var lastProcessedDate = _lastProcessedDate.HasValue
+                ? _lastProcessedDate.Value.RoundToHour()
+                : DateTime.UtcNow.RoundToHour();
+            if (lastProcessedDate < to)
+                to = lastProcessedDate;
 
             if (_cachesManager.TryGetAssetPairTradeVolume(
                 $"{clientId}_{isUser}",
@@ -129,12 +129,11 @@ namespace Lykke.Service.TradeVolumes.Services
             DateTime to,
             bool isUser)
         {
-            if (_lastProcessedDate.HasValue)
-            {
-                var lastProcessedDate = _lastProcessedDate.Value.RoundToHour();
-                if (lastProcessedDate < to)
-                    to = lastProcessedDate;
-            }
+            var lastProcessedDate = _lastProcessedDate.HasValue
+                ? _lastProcessedDate.Value.RoundToHour()
+                : DateTime.UtcNow.RoundToHour();
+            if (lastProcessedDate < to)
+                to = lastProcessedDate;
 
             if (_cachesManager.TryGetAssetTradeVolume(
                 $"{clientId}_{isUser}",

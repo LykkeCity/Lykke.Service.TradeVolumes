@@ -132,10 +132,17 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
         {
             var storage = GetStorage(baseAssetId, quotingAssetId);
             string userRowKey = TradeVolumeEntity.ByUser.GenerateRowKey(clientId);
+            string userRowFilter = TableQuery.GenerateFilterCondition(_rowKey, QueryComparisons.Equal, userRowKey);
             string walletRowKey = TradeVolumeEntity.ByWallet.GenerateRowKey(walletId);
-            var items = await storage.GetDataAsync(
-                TradeVolumeEntity.GeneratePartitionKey(date),
-                new List<string> { userRowKey, walletRowKey });
+            string walletRowFilter = TableQuery.GenerateFilterCondition(_rowKey, QueryComparisons.Equal, walletRowKey);
+            string filter = TableQuery.CombineFilters(userRowFilter, TableOperators.Or, walletRowKey);
+            string partitionFilter = TableQuery.GenerateFilterCondition(
+                _partitionKey,
+                QueryComparisons.Equal,
+                TradeVolumeEntity.GeneratePartitionKey(date));
+            filter = TableQuery.CombineFilters(partitionFilter, TableOperators.And, filter);
+            var query = new TableQuery<TradeVolumeEntity>().Where(filter);
+            var items = await storage.WhereAsync(query);
             var userTradeVolume = items.FirstOrDefault(i => i.RowKey == userRowKey);
             double userVolume = userTradeVolume != null && userTradeVolume.BaseVolume.HasValue
                 ? userTradeVolume.BaseVolume.Value : 0;
