@@ -15,7 +15,7 @@ namespace Lykke.Service.TradeVolumes.Services
         private readonly ILog _log;
         private readonly ICachesManager _cachesManager;
 
-        private DateTime _lastProcessedDate;
+        private DateTime? _lastProcessedDate;
         private DateTime _lastWarningTime;
         private TimeSpan _warningDelay;
 
@@ -30,7 +30,6 @@ namespace Lykke.Service.TradeVolumes.Services
             _tradeVolumesRepository = tradeVolumesRepository;
             _log = log;
             _cachesManager = cachesManager;
-            _lastProcessedDate = DateTime.UtcNow.RoundToHour();
             _warningDelay = warningDelay;
         }
 
@@ -60,11 +59,11 @@ namespace Lykke.Service.TradeVolumes.Services
                 baseWalletVolume,
                 quotingWalletVolume);
 
-            if (item.DateTime > _lastProcessedDate)
+            if (!_lastProcessedDate.HasValue || item.DateTime > _lastProcessedDate)
                 _lastProcessedDate = item.DateTime;
 
             DateTime now = DateTime.UtcNow;
-            if (now.Subtract(_lastProcessedDate) >= _warningDelay && now.Subtract(_lastWarningTime).TotalMinutes >= 1)
+            if (now.Subtract(_lastProcessedDate.Value) >= _warningDelay && now.Subtract(_lastWarningTime).TotalMinutes >= 1)
             {
                 await _log.WriteWarningAsync(
                     nameof(TradeVolumesCalculator),
@@ -81,9 +80,12 @@ namespace Lykke.Service.TradeVolumes.Services
             DateTime to,
             bool isUser)
         {
-            var lastProcessedDate = _lastProcessedDate.RoundToHour();
-            if (lastProcessedDate < to)
-                to = lastProcessedDate;
+            if (_lastProcessedDate.HasValue)
+            {
+                var lastProcessedDate = _lastProcessedDate.Value.RoundToHour();
+                if (lastProcessedDate < to)
+                    to = lastProcessedDate;
+            }
 
             if (_cachesManager.TryGetAssetPairTradeVolume(
                 $"{clientId}_{isUser}",
@@ -127,9 +129,12 @@ namespace Lykke.Service.TradeVolumes.Services
             DateTime to,
             bool isUser)
         {
-            var lastProcessedDate = _lastProcessedDate.RoundToHour();
-            if (lastProcessedDate < to)
-                to = lastProcessedDate;
+            if (_lastProcessedDate.HasValue)
+            {
+                var lastProcessedDate = _lastProcessedDate.Value.RoundToHour();
+                if (lastProcessedDate < to)
+                    to = lastProcessedDate;
+            }
 
             if (_cachesManager.TryGetAssetTradeVolume(
                 $"{clientId}_{isUser}",
