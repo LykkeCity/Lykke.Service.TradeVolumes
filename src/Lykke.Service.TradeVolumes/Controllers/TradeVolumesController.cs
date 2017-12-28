@@ -306,26 +306,12 @@ namespace Lykke.Service.TradeVolumes.Controllers
                 toDate = toDate.ToUniversalTime();
             toDate = toDate.RoundToHour();
 
-            if (isUser)
-                id = ClientIdHashHelper.GetClientIdHash(id);
-
             var result = await _tradeVolumesCalculator.GetPeriodAssetVolumeAsync(
                 assetId,
                 id,
                 fromDate,
                 toDate,
                 isUser);
-
-            // For trading wallets hashed ClientId instead of WalletId is stored as WalletId
-            if (!isUser && result == 0)
-            {
-                result = await _tradeVolumesCalculator.GetPeriodAssetVolumeAsync(
-                    assetId,
-                    ClientIdHashHelper.GetClientIdHash(id),
-                    fromDate,
-                    toDate,
-                    isUser);
-            }
 
             return result;
         }
@@ -348,26 +334,12 @@ namespace Lykke.Service.TradeVolumes.Controllers
                 toDate = toDate.ToUniversalTime();
             toDate = toDate.RoundToHour();
 
-            if (isUser)
-                id = ClientIdHashHelper.GetClientIdHash(id);
-
             var result = await _tradeVolumesCalculator.GetPeriodAssetPairVolumeAsync(
                 assetPairId,
                 id,
                 fromDate,
                 toDate,
                 isUser);
-
-            // For trading wallets hashed ClientId instead of WalletId is stored as WalletId
-            if (!isUser && result.Item1 == 0 && result.Item2 == 0)
-            {
-                result = await _tradeVolumesCalculator.GetPeriodAssetPairVolumeAsync(
-                    assetPairId,
-                    ClientIdHashHelper.GetClientIdHash(id),
-                    fromDate,
-                    toDate,
-                    isUser);
-            }
 
             return result;
         }
