@@ -1,5 +1,6 @@
 ﻿using System.Linq;
 using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.Threading.Tasks;
 using Lykke.Service.Assets.Client;
 using Lykke.Service.Assets.Client.Models;
@@ -11,8 +12,8 @@ namespace Lykke.Service.TradeVolumes.Services
     public class AssetsDictionary : IAssetsDictionary
     {
         private readonly IAssetsService _assetsService;
-        private readonly Dictionary<string, AssetPair> _pairsDict = new Dictionary<string, AssetPair>();
-        private readonly Dictionary<string, List<string>> _possibleTableNamesDict = new Dictionary<string, List<string>>();
+        private readonly ConcurrentDictionary<string, AssetPair> _pairsDict = new ConcurrentDictionary<string, AssetPair>();
+        private readonly ConcurrentDictionary<string, List<string>> _possibleTableNamesDict = new ConcurrentDictionary<string, List<string>>();
 
         public AssetsDictionary(IAssetsService assetsService)
         {
@@ -44,7 +45,7 @@ namespace Lykke.Service.TradeVolumes.Services
                         asset2.ToUpper());
                     possibleTableNames.Add(possibleTableName);
                 }
-                _possibleTableNamesDict.Add(asset, possibleTableNames);
+                _possibleTableNamesDict.TryAdd(asset, possibleTableNames);
             }
 
             if (!_possibleTableNamesDict.ContainsKey(assetId))
@@ -58,19 +59,13 @@ namespace Lykke.Service.TradeVolumes.Services
             if (_pairsDict.ContainsKey(assetPair))
                 return (_pairsDict[assetPair].BaseAssetId, _pairsDict[assetPair].QuotingAssetId);
 
-            var pairs = await _assetsService.AssetPairGetAllAsync();
-            foreach (var pair in pairs)
-            {
-                if (_pairsDict.ContainsKey(pair.Id))
-                    continue;
-
-                _pairsDict.Add(pair.Id, pair);
-            }
-
-            if (!_pairsDict.ContainsKey(assetPair))
+            var pair = await _assetsService.AssetPairGetAsync(assetPair);
+            if (pair == null)
                 throw new UnknownPairException($"Unknown assetPair {assetPair}!");
 
-            return (_pairsDict[assetPair].BaseAssetId, _pairsDict[assetPair].QuotingAssetId);
+            _pairsDict.TryAdd(pair.Id, pair);
+
+            return (pair.BaseAssetId, pair.QuotingAssetId);
         }
     }
 }
