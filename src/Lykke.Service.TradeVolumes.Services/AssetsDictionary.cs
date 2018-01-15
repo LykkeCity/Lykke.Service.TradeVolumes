@@ -39,7 +39,7 @@ namespace Lykke.Service.TradeVolumes.Services
                     if (asset == asset2)
                         continue;
 
-                    string possibleTableName = string.Format(
+                    var possibleTableName = string.Format(
                         Constants.TableNameFormat,
                         asset.ToUpper(),
                         asset2.ToUpper());

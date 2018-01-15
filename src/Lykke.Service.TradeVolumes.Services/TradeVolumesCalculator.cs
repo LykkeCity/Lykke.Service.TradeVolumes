@@ -124,6 +124,7 @@ namespace Lykke.Service.TradeVolumes.Services
                 from,
                 to,
                 isUser);
+            baseVolume = Math.Round(baseVolume, 8);
             double quotingVolume = await _tradeVolumesRepository.GetPeriodClientVolumeAsync(
                 quotingAssetId,
                 baseAssetId,
@@ -131,6 +132,7 @@ namespace Lykke.Service.TradeVolumes.Services
                 from,
                 to,
                 isUser);
+            quotingVolume = Math.Round(quotingVolume, 8);
             var result = (baseVolume, quotingVolume);
 
             _cachesManager.AddAssetPairTradeVolume(
@@ -171,6 +173,8 @@ namespace Lykke.Service.TradeVolumes.Services
                 from,
                 to,
                 isUser);
+
+            result = Math.Round(result, 8);
 
             _cachesManager.AddAssetTradeVolume(
                 $"{clientId}_{isUser}",
