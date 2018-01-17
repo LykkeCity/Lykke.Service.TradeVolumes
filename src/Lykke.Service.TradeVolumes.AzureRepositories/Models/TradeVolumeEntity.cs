@@ -7,7 +7,9 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories.Models
     {
         private const string _dateTimeFormat = "yyyyMMddHH";
 
-        public string ClientId { get; set; }
+        public string UserId { get; set; }
+
+        public string WalletId { get; set; }
 
         public string BaseAssetId { get; set; }
 
@@ -19,35 +21,71 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories.Models
 
         public DateTime DateTime { get; set; }
 
-        public static TradeVolumeEntity Create(
-            DateTime datetime,
-            string clientId,
-            string baseAssetId,
-            double? baseVolume,
-            string quotingAssetId,
-            double? quotingVolume)
+        public class ByUser
         {
-            return new TradeVolumeEntity
+            public static TradeVolumeEntity Create(
+                DateTime datetime,
+                string userId,
+                string walletId,
+                string baseAssetId,
+                double? baseVolume,
+                string quotingAssetId,
+                double? quotingVolume)
             {
-                PartitionKey = GeneratePartitionKey(datetime),
-                RowKey = GenerateRowKey(clientId),
-                ClientId = clientId,
-                BaseAssetId = baseAssetId,
-                BaseVolume = baseVolume,
-                QuotingAssetId = quotingAssetId,
-                QuotingVolume = quotingVolume,
-                DateTime = datetime,
-            };
+                return new TradeVolumeEntity
+                {
+                    PartitionKey = GeneratePartitionKey(datetime),
+                    RowKey = GenerateRowKey(userId),
+                    UserId = userId,
+                    WalletId = walletId,
+                    BaseAssetId = baseAssetId,
+                    BaseVolume = baseVolume,
+                    QuotingAssetId = quotingAssetId,
+                    QuotingVolume = quotingVolume,
+                    DateTime = datetime,
+                };
+            }
+
+            public static string GenerateRowKey(string userId)
+            {
+                return $"User_{userId}";
+            }
+        }
+
+        public class ByWallet
+        {
+            public static TradeVolumeEntity Create(
+                DateTime datetime,
+                string userId,
+                string walletId,
+                string baseAssetId,
+                double? baseVolume,
+                string quotingAssetId,
+                double? quotingVolume)
+            {
+                return new TradeVolumeEntity
+                {
+                    PartitionKey = GeneratePartitionKey(datetime),
+                    RowKey = GenerateRowKey(walletId),
+                    UserId = userId,
+                    WalletId = walletId,
+                    BaseAssetId = baseAssetId,
+                    BaseVolume = baseVolume,
+                    QuotingAssetId = quotingAssetId,
+                    QuotingVolume = quotingVolume,
+                    DateTime = datetime,
+                };
+            }
+
+            public static string GenerateRowKey(string walletId)
+            {
+                return $"Wallet_{walletId}";
+            }
         }
 
         public static string GeneratePartitionKey(DateTime datetime)
         {
             return datetime.ToString(_dateTimeFormat);
-        }
-
-        public static string GenerateRowKey(string clientId)
-        {
-            return clientId;
         }
     }
 }

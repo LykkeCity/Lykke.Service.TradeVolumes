@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace Lykke.Service.TradeVolumes.Core.Repositories
@@ -7,21 +8,20 @@ namespace Lykke.Service.TradeVolumes.Core.Repositories
     {
         Task NotThreadSafeTradeVolumesUpdateAsync(
             DateTime dateTime,
-            string clientId,
             string baseAssetId,
-            double baseVolume,
             string quotingAssetId,
-            double? quotingVolume);
+            Dictionary<string, (string, double[])> userWalletsData);
+        Task<Dictionary<string, (string, double[])>> GetUserWalletsTradeVolumesAsync(
+            DateTime date,
+            IEnumerable<(string, string)> userWallets,
+            string baseAssetId,
+            string quotingAssetId);
         Task<double> GetPeriodClientVolumeAsync(
             string baseAssetId,
             string quotingAssetId,
             string clientId,
             DateTime from,
-            DateTime to);
-        Task<(double, double)> GetClientPairValuesAsync(
-            DateTime date,
-            string clientId,
-            string baseAssetId,
-            string quotingAssetId);
+            DateTime to,
+            bool isUser);
     }
 }

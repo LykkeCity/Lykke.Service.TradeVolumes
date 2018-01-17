@@ -23,7 +23,6 @@ namespace Lykke.Service.TradeVolumes
     {
         private LogToConsole _console;
 
-        public IHostingEnvironment Environment { get; }
         public IContainer ApplicationContainer { get; private set; }
         public IConfigurationRoot Configuration { get; }
         public ILog Log { get; private set; }
@@ -34,8 +33,6 @@ namespace Lykke.Service.TradeVolumes
                 .SetBasePath(env.ContentRootPath)
                 .AddEnvironmentVariables();
             Configuration = builder.Build();
-
-            Environment = env;
         }
 
         public IServiceProvider ConfigureServices(IServiceCollection services)

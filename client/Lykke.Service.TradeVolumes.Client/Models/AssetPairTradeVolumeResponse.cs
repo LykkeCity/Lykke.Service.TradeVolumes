@@ -8,6 +8,9 @@
         /// <summary>Client id.</summary>
         public string ClientId { get; set; }
 
+        /// <summary>Wallet id.</summary>
+        public string WalletId { get; set; }
+
         /// <summary>Asset pair id.</summary>
         public string AssetPairId { get; set; }
 

@@ -6,6 +6,7 @@ using Swashbuckle.AspNetCore.SwaggerGen;
 using Common;
 using Lykke.Service.TradeVolumes.Core;
 using Lykke.Service.TradeVolumes.Core.Services;
+using Lykke.Service.TradeVolumes.Services;
 using Lykke.Service.TradeVolumes.Models;
 
 namespace Lykke.Service.TradeVolumes.Controllers
@@ -69,7 +70,7 @@ namespace Lykke.Service.TradeVolumes.Controllers
         /// <param name="clientId">Client Id</param>
         /// <param name="fromDate">Start DateTime (Inclusive) with hour precision</param>
         /// <param name="toDate">Finish DateTime (Exclusive) with hour precision</param>
-        [HttpGet("asset/{assetId}/{clientId}/{fromDate}/{toDate}")]
+        [HttpGet("asset/{assetId}/client/{clientId}/{fromDate}/{toDate}")]
         [SwaggerOperation("GetPeriodClientAssetTradeVolume")]
         [ProducesResponseType(typeof(AssetTradeVolumeResponse), (int)HttpStatusCode.OK)]
         public async Task<IActionResult> GetPeriodClientAssetTradeVolume(
@@ -92,31 +93,29 @@ namespace Lykke.Service.TradeVolumes.Controllers
                 return StatusCode(
                     (int)HttpStatusCode.BadRequest,
                     ErrorResponse.Create($"fromDate must be earlier than toDate"));
+            try
+            {
+                double tradeVolume = await GetPeriodAssetTradeVolume(
+                    assetId,
+                    clientId,
+                    fromDate,
+                    toDate,
+                    true);
 
-            if (fromDate.Kind == DateTimeKind.Unspecified)
-                fromDate = DateTime.SpecifyKind(fromDate, DateTimeKind.Utc);
-            else if (fromDate.Kind == DateTimeKind.Local)
-                fromDate = fromDate.ToUniversalTime();
-            fromDate = fromDate.RoundToHour();
-            if (toDate.Kind == DateTimeKind.Unspecified)
-                toDate = DateTime.SpecifyKind(toDate, DateTimeKind.Utc);
-            else if (toDate.Kind == DateTimeKind.Local)
-                toDate = toDate.ToUniversalTime();
-            toDate = toDate.RoundToHour();
-
-            double tradeVolume = await _tradeVolumesCalculator.GetPeriodAssetVolumeAsync(
-                assetId,
-                clientId,
-                fromDate,
-                toDate);
-
-            return Ok(
-                new AssetTradeVolumeResponse
-                {
-                    AssetId = assetId,
-                    ClientId = clientId,
-                    Volume = tradeVolume,
-                });
+                return Ok(
+                    new AssetTradeVolumeResponse
+                    {
+                        AssetId = assetId,
+                        ClientId = clientId,
+                        Volume = tradeVolume,
+                    });
+            }
+            catch (UnknownAssetException ex)
+            {
+                return StatusCode(
+                    (int)HttpStatusCode.BadRequest,
+                    ErrorResponse.Create(ex.Message));
+            }
         }
 
         /// <summary>
@@ -126,7 +125,7 @@ namespace Lykke.Service.TradeVolumes.Controllers
         /// <param name="clientId">Client Id</param>
         /// <param name="fromDate">Start DateTime (Inclusive) with hour precision</param>
         /// <param name="toDate">Finish DateTime (Exclusive) with hour precision</param>
-        [HttpGet("pair/{assetPairId}/{clientId}/{fromDate}/{toDate}")]
+        [HttpGet("pair/{assetPairId}/client/{clientId}/{fromDate}/{toDate}")]
         [SwaggerOperation("GetPeriodClientAssetPairTradeVolume")]
         [ProducesResponseType(typeof(AssetPairTradeVolumeResponse), (int)HttpStatusCode.OK)]
         public async Task<IActionResult> GetPeriodClientAssetPairTradeVolume(
@@ -150,6 +149,152 @@ namespace Lykke.Service.TradeVolumes.Controllers
                     (int)HttpStatusCode.BadRequest,
                     ErrorResponse.Create($"fromDate must be earlier than toDate"));
 
+            try
+            {
+                (double baseVolume, double quotingVolume) = await GetPeriodAssetPairTradeVolume(
+                    assetPairId,
+                    clientId,
+                    fromDate,
+                    toDate,
+                    true);
+
+                return Ok(
+                    new AssetPairTradeVolumeResponse
+                    {
+                        AssetPairId = assetPairId,
+                        ClientId = clientId,
+                        BaseVolume = baseVolume,
+                        QuotingVolume = quotingVolume,
+                    });
+            }
+            catch (Exception ex) when (ex is UnknownPairException || ex is UnknownAssetException)
+            {
+                return StatusCode(
+                    (int)HttpStatusCode.BadRequest,
+                    ErrorResponse.Create(ex.Message));
+            }
+        }
+
+        /// <summary>
+        /// Calculates trade volume of assetId for walletId within specified time period.
+        /// </summary>
+        /// <param name="assetId">Asset Id</param>
+        /// <param name="walletId">Wallet Id</param>
+        /// <param name="fromDate">Start DateTime (Inclusive) with hour precision</param>
+        /// <param name="toDate">Finish DateTime (Exclusive) with hour precision</param>
+        [HttpGet("asset/{assetId}/wallet/{walletId}/{fromDate}/{toDate}")]
+        [SwaggerOperation("GetPeriodWalletAssetTradeVolume")]
+        [ProducesResponseType(typeof(AssetTradeVolumeResponse), (int)HttpStatusCode.OK)]
+        public async Task<IActionResult> GetPeriodWalletAssetTradeVolume(
+            string assetId,
+            string walletId,
+            DateTime fromDate,
+            DateTime toDate)
+        {
+            if (string.IsNullOrWhiteSpace(assetId))
+                return StatusCode(
+                    (int)HttpStatusCode.BadRequest,
+                    ErrorResponse.Create("AssetId parameter is empty"));
+
+            if (string.IsNullOrWhiteSpace(walletId))
+                return StatusCode(
+                    (int)HttpStatusCode.BadRequest,
+                    ErrorResponse.Create("WalletId parameter is empty"));
+
+            if (fromDate >= toDate)
+                return StatusCode(
+                    (int)HttpStatusCode.BadRequest,
+                    ErrorResponse.Create($"fromDate must be earlier than toDate"));
+
+            try
+            {
+                double tradeVolume = await GetPeriodAssetTradeVolume(
+                    assetId,
+                    walletId,
+                    fromDate,
+                    toDate,
+                    false);
+
+                return Ok(
+                    new AssetTradeVolumeResponse
+                    {
+                        AssetId = assetId,
+                        WalletId = walletId,
+                        Volume = tradeVolume,
+                    });
+            }
+            catch (UnknownAssetException ex)
+            {
+                return StatusCode(
+                    (int)HttpStatusCode.BadRequest,
+                    ErrorResponse.Create(ex.Message));
+            }
+        }
+
+        /// <summary>
+        /// Calculates trade volume of assetPairId for walletId within specified time period.
+        /// </summary>
+        /// <param name="assetPairId">AssetPair Id</param>
+        /// <param name="walletId">Wallet Id</param>
+        /// <param name="fromDate">Start DateTime (Inclusive) with hour precision</param>
+        /// <param name="toDate">Finish DateTime (Exclusive) with hour precision</param>
+        [HttpGet("pair/{assetPairId}/wallet/{walletId}/{fromDate}/{toDate}")]
+        [SwaggerOperation("GetPeriodWalletAssetPairTradeVolume")]
+        [ProducesResponseType(typeof(AssetPairTradeVolumeResponse), (int)HttpStatusCode.OK)]
+        public async Task<IActionResult> GetPeriodWalletAssetPairTradeVolume(
+            string assetPairId,
+            string walletId,
+            DateTime fromDate,
+            DateTime toDate)
+        {
+            if (string.IsNullOrWhiteSpace(assetPairId))
+                return StatusCode(
+                    (int)HttpStatusCode.BadRequest,
+                    ErrorResponse.Create("AssetPairId parameter is empty"));
+
+            if (string.IsNullOrWhiteSpace(walletId))
+                return StatusCode(
+                    (int)HttpStatusCode.BadRequest,
+                    ErrorResponse.Create("WalletId parameter is empty"));
+
+            if (fromDate >= toDate)
+                return StatusCode(
+                    (int)HttpStatusCode.BadRequest,
+                    ErrorResponse.Create($"fromDate must be earlier than toDate"));
+
+            try
+            {
+                (double baseVolume, double quotingVolume) = await GetPeriodAssetPairTradeVolume(
+                    assetPairId,
+                    walletId,
+                    fromDate,
+                    toDate,
+                    false);
+
+                return Ok(
+                    new AssetPairTradeVolumeResponse
+                    {
+                        AssetPairId = assetPairId,
+                        WalletId = walletId,
+                        BaseVolume = baseVolume,
+                        QuotingVolume = quotingVolume,
+                    });
+            }
+            catch (Exception ex) when (ex is UnknownPairException || ex is UnknownAssetException)
+            {
+                return StatusCode(
+                    (int)HttpStatusCode.BadRequest,
+                    ErrorResponse.Create(ex.Message));
+            }
+        }
+
+        private async Task<double> GetPeriodAssetTradeVolume(
+            string assetId,
+            string id,
+            DateTime fromDate,
+            DateTime toDate,
+            bool isUser)
+        {
             if (fromDate.Kind == DateTimeKind.Unspecified)
                 fromDate = DateTime.SpecifyKind(fromDate, DateTimeKind.Utc);
             else if (fromDate.Kind == DateTimeKind.Local)
@@ -161,29 +306,42 @@ namespace Lykke.Service.TradeVolumes.Controllers
                 toDate = toDate.ToUniversalTime();
             toDate = toDate.RoundToHour();
 
-            try
-            {
-                (double baseVolume, double quotingVolume) = await _tradeVolumesCalculator.GetPeriodAssetPairVolumeAsync(
-                    assetPairId,
-                    clientId,
-                    fromDate,
-                    toDate);
+            var result = await _tradeVolumesCalculator.GetPeriodAssetVolumeAsync(
+                assetId,
+                id,
+                fromDate,
+                toDate,
+                isUser);
 
-                return Ok(
-                    new AssetPairTradeVolumeResponse
-                    {
-                        AssetPairId = assetPairId,
-                        ClientId = clientId,
-                        BaseVolume = baseVolume,
-                        QuotingVolume = quotingVolume,
-                    });
-            }
-            catch (UnknownPairException ex)
-            {
-                return StatusCode(
-                    (int)HttpStatusCode.BadRequest,
-                    ErrorResponse.Create(ex.Message));
-            }
+            return result;
+        }
+
+        private async Task<(double, double)> GetPeriodAssetPairTradeVolume(
+            string assetPairId,
+            string id,
+            DateTime fromDate,
+            DateTime toDate,
+            bool isUser)
+        {
+            if (fromDate.Kind == DateTimeKind.Unspecified)
+                fromDate = DateTime.SpecifyKind(fromDate, DateTimeKind.Utc);
+            else if (fromDate.Kind == DateTimeKind.Local)
+                fromDate = fromDate.ToUniversalTime();
+            fromDate = fromDate.RoundToHour();
+            if (toDate.Kind == DateTimeKind.Unspecified)
+                toDate = DateTime.SpecifyKind(toDate, DateTimeKind.Utc);
+            else if (toDate.Kind == DateTimeKind.Local)
+                toDate = toDate.ToUniversalTime();
+            toDate = toDate.RoundToHour();
+
+            var result = await _tradeVolumesCalculator.GetPeriodAssetPairVolumeAsync(
+                assetPairId,
+                id,
+                fromDate,
+                toDate,
+                isUser);
+
+            return result;
         }
     }
 }
