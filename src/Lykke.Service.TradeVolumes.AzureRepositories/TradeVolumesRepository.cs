@@ -220,18 +220,11 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
             bool isUser)
         {
             var tables = await GetTableNamesAsync(assetId);
-            var possibleTableNames = await _assetsDictionary.GeneratePossibleTableNamesAsync(assetId);
-            var tablesToProcess = new List<string>(tables.Count);
-            foreach (var possibleTableName in possibleTableNames)
-            {
-                if (tables.Contains(possibleTableName))
-                    tablesToProcess.Add(possibleTableName);
-            }
             var tradeVolumes = new List<double>();
             const int step = 500;
-            for (int i = 0; i < tablesToProcess.Count; i += step)
+            for (int i = 0; i < tables.Count; i += step)
             {
-                var tablesRange = tablesToProcess.GetRange(i, Math.Min(step, tablesToProcess.Count - i));
+                var tablesRange = tables.GetRange(i, Math.Min(step, tables.Count - i));
                 await Task.WhenAll(tablesRange.Select(t =>
                     AddTradeVolumeAsync(
                         from,
@@ -276,12 +269,12 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
             }
         }
 
-        private async Task<HashSet<string>> GetTableNamesAsync(string assetId)
+        private async Task<List<string>> GetTableNamesAsync(string assetId)
         {
             string assetName = await _assetsDictionary.GetShortNameAsync(assetId);
             string tablesPrefix = string.Format(Constants.TableNamesPrefix, assetName);
             TableContinuationToken token = null;
-            var result = new HashSet<string>();
+            var result = new List<string>();
             do
             {
                 var response = await _tableClient.ListTablesSegmentedAsync(tablesPrefix, token);
