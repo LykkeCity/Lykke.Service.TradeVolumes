@@ -71,7 +71,7 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
                         quotingAssetId,
                         userWalletTradeVolumes[3]));
             }
-            var baseStorage = GetStorage(baseAssetId, quotingAssetId);
+            var baseStorage = await GetStorageAsync(baseAssetId, quotingAssetId);
             await baseStorage.InsertOrReplaceAsync(items);
         }
 
@@ -122,7 +122,7 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
                     baseAssetId,
                     isUser);
 
-            var storage = GetStorage(baseAssetId, quotingAssetId);
+            var storage = await GetStorageAsync(baseAssetId, quotingAssetId);
             return await GetTableTradeVolumeAsync(
                 from,
                 to,
@@ -137,9 +137,8 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
             string baseAssetId,
             string quotingAssetId)
         {
-            var storage = GetStorage(baseAssetId, quotingAssetId);
+            var storage = await GetStorageAsync(baseAssetId, quotingAssetId);
 
-            
             string partitionFilter = TableQuery.GenerateFilterCondition(
                 _partitionKey,
                 QueryComparisons.Equal,
@@ -279,8 +278,8 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
 
         private async Task<HashSet<string>> GetTableNamesAsync(string assetId)
         {
-            assetId = assetId.Replace("-", "");
-            string tablesPrefix = string.Format(Constants.TableNamesPrefix, assetId);
+            string assetName = await _assetsDictionary.GetShortNameAsync(assetId);
+            string tablesPrefix = string.Format(Constants.TableNamesPrefix, assetName);
             TableContinuationToken token = null;
             var result = new HashSet<string>();
             do
@@ -296,10 +295,10 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
             return result;
         }
 
-        private INoSQLTableStorage<TradeVolumeEntity> GetStorage(string baseAssetId, string quotingAssetId)
+        private async Task<INoSQLTableStorage<TradeVolumeEntity>> GetStorageAsync(string baseAssetId, string quotingAssetId)
         {
-            baseAssetId = baseAssetId.Replace("-", "").ToUpper();
-            quotingAssetId = quotingAssetId.Replace("-", "").ToUpper();
+            baseAssetId = await _assetsDictionary.GetShortNameAsync(baseAssetId);
+            quotingAssetId = await _assetsDictionary.GetShortNameAsync(quotingAssetId);
             string tableName = string.Format(Constants.TableNameFormat, baseAssetId, quotingAssetId);
             return AzureTableStorage<TradeVolumeEntity>.Create(
                 _connectionStringManager,

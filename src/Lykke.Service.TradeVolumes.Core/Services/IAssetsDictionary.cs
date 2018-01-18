@@ -7,5 +7,6 @@ namespace Lykke.Service.TradeVolumes.Core.Services
     {
         Task<(string, string)> GetAssetIdsAsync(string assetPair);
         Task<List<string>> GeneratePossibleTableNamesAsync(string assetId);
+        Task<string> GetShortNameAsync(string assetId);
     }
 }
