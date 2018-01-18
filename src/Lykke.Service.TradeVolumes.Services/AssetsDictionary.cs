@@ -14,6 +14,7 @@ namespace Lykke.Service.TradeVolumes.Services
         private readonly IAssetsService _assetsService;
         private readonly ConcurrentDictionary<string, AssetPair> _pairsDict = new ConcurrentDictionary<string, AssetPair>();
         private readonly ConcurrentDictionary<string, List<string>> _possibleTableNamesDict = new ConcurrentDictionary<string, List<string>>();
+        private readonly ConcurrentDictionary<string, string> _assetsDict = new ConcurrentDictionary<string, string>();
 
         public AssetsDictionary(IAssetsService assetsService)
         {
@@ -22,12 +23,16 @@ namespace Lykke.Service.TradeVolumes.Services
 
         public async Task<List<string>> GeneratePossibleTableNamesAsync(string assetId)
         {
-            assetId = assetId.Replace("-", "");
-            if (_possibleTableNamesDict.ContainsKey(assetId))
-                return _possibleTableNamesDict[assetId];
+            var assetName = await GetShortNameAsync(assetId);
+            if (_possibleTableNamesDict.ContainsKey(assetName))
+                return _possibleTableNamesDict[assetName];
 
             var assets = await _assetsService.AssetGetAllAsync(true);
-            var assetIds = assets.Select(a => a.Id.Replace("-", "")).ToList();
+            var assetIds = assets.Select(a => GetShortName(a)).ToHashSet();
+
+            if (!assetIds.Contains(assetName))
+                throw new UnknownAssetException($"Unknown asset {assetId}");
+
             foreach (var asset in assetIds)
             {
                 if (_possibleTableNamesDict.ContainsKey(asset))
@@ -41,17 +46,14 @@ namespace Lykke.Service.TradeVolumes.Services
 
                     var possibleTableName = string.Format(
                         Constants.TableNameFormat,
-                        asset.ToUpper(),
-                        asset2.ToUpper());
+                        asset,
+                        asset2);
                     possibleTableNames.Add(possibleTableName);
                 }
                 _possibleTableNamesDict.TryAdd(asset, possibleTableNames);
             }
 
-            if (!_possibleTableNamesDict.ContainsKey(assetId))
-                throw new UnknownAssetException($"Unknown asset {assetId}");
-
-            return _possibleTableNamesDict[assetId];
+            return _possibleTableNamesDict[assetName];
         }
 
         public async Task<(string, string)> GetAssetIdsAsync(string assetPair)
@@ -66,6 +68,41 @@ namespace Lykke.Service.TradeVolumes.Services
             _pairsDict.TryAdd(pair.Id, pair);
 
             return (pair.BaseAssetId, pair.QuotingAssetId);
+        }
+
+        public async Task<string> GetShortNameAsync(string assetId)
+        {
+            var alias = CleanupNameForTable(assetId);
+            if (alias.Length <= 31)
+                return alias;
+
+            if (!_assetsDict.ContainsKey(assetId))
+            {
+                var asset = await _assetsService.AssetGetAsync(assetId);
+                if (asset == null)
+                    throw new UnknownAssetException($"Unknown asset {assetId}");
+                var assetName = string.IsNullOrWhiteSpace(asset.DisplayId) ? asset.Name : asset.DisplayId;
+                _assetsDict.TryAdd(assetId, CleanupNameForTable(assetName));
+            }
+
+            _assetsDict.TryGetValue(assetId, out string result);
+            return result;
+        }
+
+
+        private string GetShortName(Asset asset)
+        {
+            var assetName = CleanupNameForTable(asset.Id);
+            if (assetName.Length <= 31)
+                return assetName;
+
+            assetName = string.IsNullOrWhiteSpace(asset.DisplayId) ? asset.Name : asset.DisplayId;
+            return CleanupNameForTable(assetName);
+        }
+
+        private string CleanupNameForTable(string name)
+        {
+            return name.Replace(" ", "").Replace("_", "").Replace("-", "").ToUpper();
         }
     }
 }
