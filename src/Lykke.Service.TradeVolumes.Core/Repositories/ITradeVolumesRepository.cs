@@ -10,8 +10,9 @@ namespace Lykke.Service.TradeVolumes.Core.Repositories
             DateTime dateTime,
             string baseAssetId,
             string quotingAssetId,
-            Dictionary<string, (string, double[])> userWalletsData);
-        Task<Dictionary<string, (string, double[])>> GetUserWalletsTradeVolumesAsync(
+            ICollection<(string, string, double, double)> userVolumes,
+            ICollection<(string, string, double, double)> waletVolumes);
+        Task<Dictionary<string, double[]>> GetUserWalletsTradeVolumesAsync(
             DateTime date,
             IEnumerable<(string, string)> userWallets,
             string baseAssetId,
