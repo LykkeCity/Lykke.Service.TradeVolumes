@@ -63,24 +63,35 @@ namespace Lykke.Service.TradeVolumes.Services
                         var walletsDict = new Dictionary<string, (string, double[])>();
                         foreach (var walletVolumes in walletsVolumes)
                         {
-                            usersDict[walletsMap[walletVolumes.Key]] =
-                                (walletVolumes.Key, new double[2] { walletVolumes.Value[0], walletVolumes.Value[1] }, new HashSet<string>());
+                            string userId = walletsMap[walletVolumes.Key];
+                            if (usersDict.ContainsKey(userId))
+                            {
+                                var userVolumes = usersDict[userId].Item2;
+                                userVolumes[0] += walletVolumes.Value[0];
+                                userVolumes[1] += walletVolumes.Value[1];
+                            }
+                            else
+                            {
+                                usersDict.Add(userId, (walletVolumes.Key, new double[2] { walletVolumes.Value[0], walletVolumes.Value[1] }, new HashSet<string>()));
+                            }
                             walletsDict[walletVolumes.Key] =
                                 (walletsMap[walletVolumes.Key], new double[2] { walletVolumes.Value[2], walletVolumes.Value[3] });
                         }
                         foreach (var item in oppositeAssetGroup)
                         {
-                            var userData = usersDict[item.UserId];
-                            if (!userData.Item3.Contains(item.TradeId))
+                            var userTrades = usersDict[item.UserId].Item3;
+                            if (!userTrades.Contains(item.TradeId))
                             {
-                                userData.Item2[0] += (double)item.Volume;
-                                userData.Item2[1] += item.OppositeVolume.HasValue ? (double)item.OppositeVolume.Value : 0;
-                                userData.Item3.Add(item.TradeId);
+                                var userVolumes = usersDict[item.UserId].Item2;
+                                userVolumes[0] += (double)item.Volume;
+                                userVolumes[1] += item.OppositeVolume.HasValue ? (double)item.OppositeVolume.Value : 0;
+                                userTrades.Add(item.TradeId);
                             }
 
                             var walletData = walletsDict[item.WalletId];
-                            walletData.Item2[0] += (double)item.Volume;
-                            walletData.Item2[1] += item.OppositeVolume.HasValue ? (double)item.OppositeVolume.Value : 0;
+                            var walletVolumes = walletData.Item2;
+                            walletVolumes[0] += (double)item.Volume;
+                            walletVolumes[1] += item.OppositeVolume.HasValue ? (double)item.OppositeVolume.Value : 0;
                         }
 
                         await _tradeVolumesRepository.NotThreadSafeTradeVolumesUpdateAsync(
