@@ -44,38 +44,47 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
             DateTime dateTime,
             string baseAssetId,
             string quotingAssetId,
-            Dictionary<string, (string, double[])> userWalletsData)
+            ICollection<(string, string, double, double)> userVolumes,
+            ICollection<(string, string, double, double)> waletVolumes)
         {
-            var items = new List<TradeVolumeEntity>(userWalletsData.Count * 2);
-            foreach (var userWalletData in userWalletsData)
+            var items = new List<TradeVolumeEntity>(userVolumes.Count + waletVolumes.Count);
+            foreach (var userVolume in userVolumes)
             {
-                string userId = userWalletData.Value.Item1;
-                string walletId = userWalletData.Key;
-                var userWalletTradeVolumes = userWalletData.Value.Item2;
+                string userId = userVolume.Item1;
+                string walletId = userVolume.Item2;
+                double baseVolume = userVolume.Item3;
+                double quotingVolume = userVolume.Item4;
                 items.Add(
                     TradeVolumeEntity.ByUser.Create(
                         dateTime,
                         userId,
                         walletId,
                         baseAssetId,
-                        userWalletTradeVolumes[0],
+                        baseVolume,
                         quotingAssetId,
-                        userWalletTradeVolumes[1]));
+                        quotingVolume));
+            }
+            foreach (var walletVolume in waletVolumes)
+            {
+                string userId = walletVolume.Item1;
+                string walletId = walletVolume.Item2;
+                double baseVolume = walletVolume.Item3;
+                double quotingVolume = walletVolume.Item4;
                 items.Add(
                     TradeVolumeEntity.ByWallet.Create(
                         dateTime,
                         userId,
                         walletId,
                         baseAssetId,
-                        userWalletTradeVolumes[2],
+                        baseVolume,
                         quotingAssetId,
-                        userWalletTradeVolumes[3]));
+                        quotingVolume));
             }
             var baseStorage = await GetStorageAsync(baseAssetId, quotingAssetId);
             await baseStorage.InsertOrReplaceAsync(items);
         }
 
-        public async Task<Dictionary<string, (string, double[])>> GetUserWalletsTradeVolumesAsync(
+        public async Task<Dictionary<string, double[]>> GetUserWalletsTradeVolumesAsync(
             DateTime date,
             IEnumerable<(string, string)> userWallets,
             string baseAssetId,
@@ -93,13 +102,13 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
                 quotingAssetId,
                 baseAssetId);
 
-            var result = new Dictionary<string, (string, double[])>();
+            var result = new Dictionary<string, double[]>();
             foreach (var userWalletInfo in userWallets)
             {
                 string walletId = userWalletInfo.Item2;
                 var baseData = baseWalletsData[walletId];
                 var quotingData = quotingWalletData[walletId];
-                result.Add(walletId, (userWalletInfo.Item1, new double[] { baseData.Item1, quotingData.Item1, baseData.Item2, quotingData.Item2 }));
+                result.Add(walletId, new double[4] { baseData.Item1, quotingData.Item1, baseData.Item2, quotingData.Item2 });
             }
 
             return result;

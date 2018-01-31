@@ -37,10 +37,10 @@ namespace Lykke.Service.TradeVolumes.Services
 
         public async Task AddTradeLogItemsAsync(List<TradeLogItem> items)
         {
-            var walletsDict = new Dictionary<string, string>(items.Count);
+            var walletsMap = new Dictionary<string, string>(items.Count);
             foreach (var item in items)
             {
-                walletsDict[item.WalletId] = item.UserId;
+                walletsMap[item.WalletId] = item.UserId;
             }
 
             var byHour = items.GroupBy(i => i.DateTime.Hour);
@@ -55,24 +55,51 @@ namespace Lykke.Service.TradeVolumes.Services
                         var groupTime = oppositeAssetGroup.Max(i => i.DateTime);
                         var walletsVolumes = await _tradeVolumesRepository.GetUserWalletsTradeVolumesAsync(
                             groupTime,
-                            walletsDict.Select(i => (i.Value, i.Key)),
+                            walletsMap.Select(i => (i.Value, i.Key)),
                             assetGroup.Key,
                             oppositeAssetGroup.Key);
 
+                        var usersDict = new Dictionary<string, (string, double[], HashSet<string>)>();
+                        var walletsDict = new Dictionary<string, (string, double[])>();
+                        foreach (var walletVolumes in walletsVolumes)
+                        {
+                            string userId = walletsMap[walletVolumes.Key];
+                            if (usersDict.ContainsKey(userId))
+                            {
+                                var userVolumes = usersDict[userId].Item2;
+                                userVolumes[0] += walletVolumes.Value[0];
+                                userVolumes[1] += walletVolumes.Value[1];
+                            }
+                            else
+                            {
+                                usersDict.Add(userId, (walletVolumes.Key, new double[2] { walletVolumes.Value[0], walletVolumes.Value[1] }, new HashSet<string>()));
+                            }
+                            walletsDict[walletVolumes.Key] =
+                                (walletsMap[walletVolumes.Key], new double[2] { walletVolumes.Value[2], walletVolumes.Value[3] });
+                        }
                         foreach (var item in oppositeAssetGroup)
                         {
-                            var volumes = walletsVolumes[item.WalletId].Item2;
-                            volumes[0] += (double)item.Volume;
-                            volumes[1] += item.OppositeVolume.HasValue ? (double)item.OppositeVolume.Value : 0;
-                            volumes[2] += (double)item.Volume;
-                            volumes[3] += item.OppositeVolume.HasValue ? (double)item.OppositeVolume.Value : 0;
+                            var userTrades = usersDict[item.UserId].Item3;
+                            if (!userTrades.Contains(item.TradeId))
+                            {
+                                var userVolumes = usersDict[item.UserId].Item2;
+                                userVolumes[0] += (double)item.Volume;
+                                userVolumes[1] += item.OppositeVolume.HasValue ? (double)item.OppositeVolume.Value : 0;
+                                userTrades.Add(item.TradeId);
+                            }
+
+                            var walletData = walletsDict[item.WalletId];
+                            var walletVolumes = walletData.Item2;
+                            walletVolumes[0] += (double)item.Volume;
+                            walletVolumes[1] += item.OppositeVolume.HasValue ? (double)item.OppositeVolume.Value : 0;
                         }
 
                         await _tradeVolumesRepository.NotThreadSafeTradeVolumesUpdateAsync(
                             groupTime,
                             assetGroup.Key,
                             oppositeAssetGroup.Key,
-                            walletsVolumes);
+                            usersDict.Select(p => (p.Key, p.Value.Item1, p.Value.Item2[0], p.Value.Item2[1])).ToList(),
+                            walletsDict.Select(p => (p.Value.Item1, p.Key, p.Value.Item2[0], p.Value.Item2[1])).ToList());
                     }
                 }
             }
