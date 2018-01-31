@@ -76,6 +76,8 @@ namespace Lykke.Service.TradeVolumes.Services
                             }
                             walletsDict[walletVolumes.Key] =
                                 (walletsMap[walletVolumes.Key], new double[2] { walletVolumes.Value[2], walletVolumes.Value[3] });
+                            _cachesManager.ClearClientCache($"{userId}_{true}");
+                            _cachesManager.ClearClientCache($"{walletVolumes.Key}_{false}");
                         }
                         foreach (var item in oppositeAssetGroup)
                         {
