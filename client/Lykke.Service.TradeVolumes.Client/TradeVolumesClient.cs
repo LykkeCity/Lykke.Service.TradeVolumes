@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Common.Log;
 using Lykke.Service.TradeVolumes.Client.AutorestClient;
@@ -54,6 +55,28 @@ namespace Lykke.Service.TradeVolumes.Client
                 BaseVolume = result.BaseVolume,
                 QuotingVolume = result.QuotingVolume,
             };
+        }
+
+        public async Task<List<AssetPairTradeVolumeResponse>> GetAssetPairsTradeVolumeAsync(string[] assetPairIds, DateTime fromDate, DateTime toDate)
+        {
+            var volumes = await _service.GetPeriodAssetPairsTradeVolumeAsync(
+                fromDate,
+                toDate,
+                assetPairIds);
+
+            var result = new List<AssetPairTradeVolumeResponse>();
+            
+            foreach (var volume in volumes)
+            {
+                result.Add(new AssetPairTradeVolumeResponse
+                {
+                    AssetPairId = volume.AssetPairId,
+                    BaseVolume = volume.BaseVolume,
+                    QuotingVolume = volume.QuotingVolume,
+                });
+            }
+
+            return result;
         }
 
         public async Task<AssetTradeVolumeResponse> GetClientAssetTradeVolumeAsync(string assetId, string clientId, DateTime fromDate, DateTime toDate)

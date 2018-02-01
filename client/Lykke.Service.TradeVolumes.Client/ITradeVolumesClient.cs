@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Lykke.Service.TradeVolumes.Client.Models;
 
@@ -30,6 +31,18 @@ namespace Lykke.Service.TradeVolumes.Client
         /// <returns>Asset pair trade volume.</returns>
         Task<AssetPairTradeVolumeResponse> GetAssetPairTradeVolumeAsync(
             string assetPairId,
+            DateTime fromDate,
+            DateTime toDate);
+        
+        /// <summary>
+        /// Get trade volume for specified asset pairs.
+        /// </summary>
+        /// <param name="assetPairIds">Asset pair ids.</param>
+        /// <param name="fromDate">Search from (inclusive) with hour precision.</param>
+        /// <param name="toDate">Search to (exclusive) with hour precision.</param>
+        /// <returns>Asset pair trade volume.</returns>
+        Task<List<AssetPairTradeVolumeResponse>> GetAssetPairsTradeVolumeAsync(
+            string[] assetPairIds,
             DateTime fromDate,
             DateTime toDate);
 
