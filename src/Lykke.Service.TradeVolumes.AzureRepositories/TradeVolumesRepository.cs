@@ -114,7 +114,7 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
             return result;
         }
 
-        public async Task<double> GetPeriodClientVolumeAsync(
+        public async Task<(double, double)> GetPeriodClientVolumeAsync(
             string baseAssetId,
             string quotingAssetId,
             string clientId,
@@ -124,12 +124,15 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
         {
             var tradeVolumes = new List<double>();
             if (quotingAssetId == null)
-                return await GetAssetTradeVolumeAsync(
+            {
+                double result = await GetAssetTradeVolumeAsync(
                     from,
                     to,
                     clientId,
                     baseAssetId,
                     isUser);
+                return (result, 0);
+            }
 
             var storage = await GetStorageAsync(baseAssetId, quotingAssetId);
             return await GetTableTradeVolumeAsync(
@@ -186,7 +189,7 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
             return result;
         }
 
-        private async Task<double> GetTableTradeVolumeAsync(
+        private async Task<(double, double)> GetTableTradeVolumeAsync(
             DateTime from,
             DateTime to,
             string clientId,
@@ -215,10 +218,18 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
             var query = new TableQuery<TradeVolumeEntity>().Where(filter);
             var items = await storage.WhereAsync(query, i =>
                 clientId != Constants.AllClients || i.RowKey == TradeVolumeEntity.ByUser.GenerateRowKey(i.UserId));
-            double result = items.Sum(i => i.BaseVolume.HasValue ? i.BaseVolume.Value : 0);
+            double baseResult = 0, quotingResult = 0;
+            foreach (var item in items)
+            {
+                baseResult += item.BaseVolume.HasValue ? item.BaseVolume.Value : 0;
+                quotingResult += item.QuotingVolume.HasValue ? item.QuotingVolume.Value : 0;
+            }
             if (clientId == Constants.AllClients)
-                result /= 2;
-            return result;
+            {
+                baseResult /= 2;
+                quotingResult /= 2;
+            }
+            return (baseResult, quotingResult);
         }
 
         private async Task<double> GetAssetTradeVolumeAsync(
@@ -259,7 +270,7 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
                 tableName,
                 _log,
                 _timeout);
-            double tradeVolume = await GetTableTradeVolumeAsync(
+            (double tradeVolume, _) = await GetTableTradeVolumeAsync(
                 from,
                 to,
                 clientId,

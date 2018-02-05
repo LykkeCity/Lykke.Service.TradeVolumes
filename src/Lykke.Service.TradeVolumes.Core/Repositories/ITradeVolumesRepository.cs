@@ -17,7 +17,7 @@ namespace Lykke.Service.TradeVolumes.Core.Repositories
             IEnumerable<(string, string)> userWallets,
             string baseAssetId,
             string quotingAssetId);
-        Task<double> GetPeriodClientVolumeAsync(
+        Task<(double, double)> GetPeriodClientVolumeAsync(
             string baseAssetId,
             string quotingAssetId,
             string clientId,
