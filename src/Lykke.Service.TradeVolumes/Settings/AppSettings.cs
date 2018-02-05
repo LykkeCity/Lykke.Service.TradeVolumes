@@ -37,5 +37,7 @@
         public string TradelogExchangeName { get; set; }
 
         public int WarningDelayInHours { get; set; }
+
+        public int TradesCacheTimeoutInHours { get; set; }
     }
 }
