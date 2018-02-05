@@ -82,6 +82,8 @@ namespace Lykke.Service.TradeVolumes.Services
                         }
                         foreach (var item in oppositeAssetGroup)
                         {
+                            if (!userTradesDict.ContainsKey(item.UserId))
+                                userTradesDict.Add(item.UserId, new HashSet<string>());
                             var userTrades = userTradesDict[item.UserId];
                             if (!userTrades.Contains(item.TradeId))
                             {
