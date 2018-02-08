@@ -44,21 +44,19 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
             DateTime dateTime,
             string baseAssetId,
             string quotingAssetId,
-            ICollection<(string, string, double, double)> userVolumes,
+            ICollection<(string, double, double)> userVolumes,
             ICollection<(string, string, double, double)> waletVolumes)
         {
             var items = new List<TradeVolumeEntity>(userVolumes.Count + waletVolumes.Count);
             foreach (var userVolume in userVolumes)
             {
                 string userId = userVolume.Item1;
-                string walletId = userVolume.Item2;
-                double baseVolume = userVolume.Item3;
-                double quotingVolume = userVolume.Item4;
+                double baseVolume = userVolume.Item2;
+                double quotingVolume = userVolume.Item3;
                 items.Add(
                     TradeVolumeEntity.ByUser.Create(
                         dateTime,
                         userId,
-                        walletId,
                         baseAssetId,
                         baseVolume,
                         quotingAssetId,
@@ -86,31 +84,63 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
 
         public async Task<Dictionary<string, double[]>> GetUserWalletsTradeVolumesAsync(
             DateTime date,
-            IEnumerable<(string, string)> userWallets,
+            IEnumerable<string> userIds,
+            IEnumerable<string> walletIds,
             string baseAssetId,
             string quotingAssetId)
         {
-            var baseWalletsData = await GetTradeVolumeAsync(
-                date,
-                userWallets,
-                baseAssetId,
-                quotingAssetId);
+            var storage = await GetStorageAsync(baseAssetId, quotingAssetId);
 
-            var quotingWalletData = await GetTradeVolumeAsync(
-                date,
-                userWallets,
-                quotingAssetId,
-                baseAssetId);
+            string partitionFilter = TableQuery.GenerateFilterCondition(
+                _partitionKey,
+                QueryComparisons.Equal,
+                TradeVolumeEntity.GeneratePartitionKey(date));
+            var sb = new StringBuilder($"({partitionFilter}) and (");
+            bool isFirstRowFilter = true;
+            foreach (var userId in userIds)
+            {
+                if (isFirstRowFilter)
+                    isFirstRowFilter = false;
+                else
+                    sb.Append(" or ");
+                string userRowKey = TradeVolumeEntity.ByUser.GenerateRowKey(userId);
+                string userRowFilter = TableQuery.GenerateFilterCondition(_rowKey, QueryComparisons.Equal, userRowKey);
+                sb.Append(userRowFilter);
+            }
+            foreach (var walletId in walletIds)
+            {
+                sb.Append(" or ");
+                string walletRowKey = TradeVolumeEntity.ByWallet.GenerateRowKey(walletId);
+                string walletRowFilter = TableQuery.GenerateFilterCondition(_rowKey, QueryComparisons.Equal, walletRowKey);
+                sb.Append(walletRowFilter);
+            }
+            sb.Append(")");
+            string filter = sb.ToString();
+            var query = new TableQuery<TradeVolumeEntity>().Where(filter);
+            var items = await storage.WhereAsync(query);
+            var itemsDict = items.ToDictionary(i => i.RowKey, i => i);
 
             var result = new Dictionary<string, double[]>();
-            foreach (var userWalletInfo in userWallets)
+            foreach (var userId in userIds)
             {
-                string walletId = userWalletInfo.Item2;
-                var baseData = baseWalletsData[walletId];
-                var quotingData = quotingWalletData[walletId];
-                result.Add(walletId, new double[4] { baseData.Item1, quotingData.Item1, baseData.Item2, quotingData.Item2 });
+                string userRowKey = TradeVolumeEntity.ByUser.GenerateRowKey(userId);
+                var userTradeVolume = itemsDict.ContainsKey(userRowKey) ? itemsDict[userRowKey] : null;
+                double baseVolume = userTradeVolume != null && userTradeVolume.BaseVolume.HasValue
+                    ? userTradeVolume.BaseVolume.Value : 0;
+                double quotingVolume = userTradeVolume != null && userTradeVolume.QuotingVolume.HasValue
+                    ? userTradeVolume.QuotingVolume.Value : 0;
+                result.Add(userId, new double[2] { baseVolume, quotingVolume });
             }
-
+            foreach (var walletId in walletIds)
+            {
+                string walletRowKey = TradeVolumeEntity.ByWallet.GenerateRowKey(walletId);
+                var walletTradeVolume = itemsDict.ContainsKey(walletRowKey) ? itemsDict[walletRowKey] : null;
+                double baseVolume = walletTradeVolume != null && walletTradeVolume.BaseVolume.HasValue
+                    ? walletTradeVolume.BaseVolume.Value : 0;
+                double quotingVolume = walletTradeVolume != null && walletTradeVolume.QuotingVolume.HasValue
+                    ? walletTradeVolume.QuotingVolume.Value : 0;
+                result.Add(walletId, new double[2] { baseVolume, quotingVolume });
+            }
             return result;
         }
 
@@ -141,52 +171,6 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
                 clientId,
                 storage,
                 isUser);
-        }
-
-        private async Task<Dictionary<string, (double, double)>> GetTradeVolumeAsync(
-            DateTime date,
-            IEnumerable<(string, string)> userWallets,
-            string baseAssetId,
-            string quotingAssetId)
-        {
-            var storage = await GetStorageAsync(baseAssetId, quotingAssetId);
-
-            string partitionFilter = TableQuery.GenerateFilterCondition(
-                _partitionKey,
-                QueryComparisons.Equal,
-                TradeVolumeEntity.GeneratePartitionKey(date));
-            var sb = new StringBuilder($"({partitionFilter}) and (");
-            bool isFirstRowFilter = true;
-            foreach (var userWallet in userWallets)
-            {
-                if (isFirstRowFilter)
-                    isFirstRowFilter = false;
-                else
-                    sb.Append(" or ");
-                string userRowKey = TradeVolumeEntity.ByUser.GenerateRowKey(userWallet.Item1);
-                string userRowFilter = TableQuery.GenerateFilterCondition(_rowKey, QueryComparisons.Equal, userRowKey);
-                string walletRowKey = TradeVolumeEntity.ByWallet.GenerateRowKey(userWallet.Item2);
-                string walletRowFilter = TableQuery.GenerateFilterCondition(_rowKey, QueryComparisons.Equal, walletRowKey);
-                sb.Append($"{userRowFilter} or {walletRowFilter}");
-            }
-            sb.Append(")");
-            string filter = sb.ToString();
-            var query = new TableQuery<TradeVolumeEntity>().Where(filter);
-            var items = await storage.WhereAsync(query);
-            var result = new Dictionary<string, (double, double)>();
-            foreach (var userWallet in userWallets)
-            {
-                string userRowKey = TradeVolumeEntity.ByUser.GenerateRowKey(userWallet.Item1);
-                string walletRowKey = TradeVolumeEntity.ByWallet.GenerateRowKey(userWallet.Item2);
-                var userTradeVolume = items.FirstOrDefault(i => i.RowKey == userRowKey);
-                double userVolume = userTradeVolume != null && userTradeVolume.BaseVolume.HasValue
-                    ? userTradeVolume.BaseVolume.Value : 0;
-                var walletTradeVolume = items.FirstOrDefault(i => i.RowKey == walletRowKey);
-                double walletVolume = walletTradeVolume != null && walletTradeVolume.BaseVolume.HasValue
-                    ? walletTradeVolume.BaseVolume.Value : 0;
-                result.Add(userWallet.Item2, (userVolume, walletVolume));
-            }
-            return result;
         }
 
         private async Task<(double, double)> GetTableTradeVolumeAsync(

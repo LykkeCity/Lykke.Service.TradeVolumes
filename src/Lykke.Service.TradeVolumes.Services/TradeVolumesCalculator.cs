@@ -60,37 +60,27 @@ namespace Lykke.Service.TradeVolumes.Services
                     foreach (var oppositeAssetGroup in byOppositeAsset)
                     {
                         var groupTime = oppositeAssetGroup.Max(i => i.DateTime);
-                        var walletsVolumes = await _tradeVolumesRepository.GetUserWalletsTradeVolumesAsync(
+                        var usersHash = new HashSet<string>(items.Count);
+                        var walletsHash = new HashSet<string>(items.Count);
+                        foreach (var item in oppositeAssetGroup)
+                        {
+                            usersHash.Add(item.UserId);
+                            walletsHash.Add(item.WalletId);
+                        }
+
+                        var volumes = await _tradeVolumesRepository.GetUserWalletsTradeVolumesAsync(
                             groupTime,
-                            walletsMap.Select(i => (i.Value, i.Key)),
+                            usersHash,
+                            walletsHash,
                             assetGroup.Key,
                             oppositeAssetGroup.Key);
 
-                        var usersDict = new Dictionary<string, (string, double[])>();
-                        var walletsDict = new Dictionary<string, (string, double[])>();
-                        foreach (var walletVolumes in walletsVolumes)
-                        {
-                            string userId = walletsMap[walletVolumes.Key];
-                            if (usersDict.ContainsKey(userId))
-                            {
-                                var userVolumes = usersDict[userId].Item2;
-                                userVolumes[0] += walletVolumes.Value[0];
-                                userVolumes[1] += walletVolumes.Value[1];
-                            }
-                            else
-                            {
-                                usersDict.Add(userId, (walletVolumes.Key, new double[2] { walletVolumes.Value[0], walletVolumes.Value[1] }));
-                            }
-                            walletsDict[walletVolumes.Key] = (walletsMap[walletVolumes.Key], new double[2] { walletVolumes.Value[2], walletVolumes.Value[3] });
-                            _cachesManager.ClearClientCache($"{userId}_{true}");
-                            _cachesManager.ClearClientCache($"{walletVolumes.Key}_{false}");
-                        }
                         foreach (var item in oppositeAssetGroup)
                         {
                             if (!_tradesDict.ContainsKey(item.TradeId)
                                 || !_tradesDict[item.TradeId].Item1.Contains(item.Asset))
                             {
-                                var userVolumes = usersDict[item.UserId].Item2;
+                                var userVolumes = volumes[item.UserId];
                                 userVolumes[0] += (double)item.Volume;
                                 userVolumes[1] += item.OppositeVolume.HasValue ? (double)item.OppositeVolume.Value : 0;
                                 if (!_tradesDict.ContainsKey(item.TradeId))
@@ -107,7 +97,7 @@ namespace Lykke.Service.TradeVolumes.Services
                                     tradeAssets.Remove(item.Asset);
                             }
 
-                            var walletVolumes = walletsDict[item.WalletId].Item2;
+                            var walletVolumes = volumes[item.WalletId];
                             walletVolumes[0] += (double)item.Volume;
                             walletVolumes[1] += item.OppositeVolume.HasValue ? (double)item.OppositeVolume.Value : 0;
                         }
@@ -116,8 +106,17 @@ namespace Lykke.Service.TradeVolumes.Services
                             groupTime,
                             assetGroup.Key,
                             oppositeAssetGroup.Key,
-                            usersDict.Select(p => (p.Key, p.Value.Item1, p.Value.Item2[0], p.Value.Item2[1])).ToList(),
-                            walletsDict.Select(p => (p.Value.Item1, p.Key, p.Value.Item2[0], p.Value.Item2[1])).ToList());
+                            usersHash.Select(u => (u, volumes[u][0], volumes[u][1])).ToList(),
+                            walletsHash.Select(w => (walletsMap[w], w, volumes[w][0], volumes[w][1])).ToList());
+
+                        foreach (var userId in usersHash)
+                        {
+                            _cachesManager.ClearClientCache(userId);
+                        }
+                        foreach (var walletId in walletsHash)
+                        {
+                            _cachesManager.ClearClientCache(walletId);
+                        }
                     }
                 }
             }
@@ -171,7 +170,7 @@ namespace Lykke.Service.TradeVolumes.Services
                 to = lastProcessedDate;
 
             if (_cachesManager.TryGetAssetPairTradeVolume(
-                $"{clientId}_{isUser}",
+                clientId,
                 assetPairId,
                 from,
                 to,
@@ -191,7 +190,7 @@ namespace Lykke.Service.TradeVolumes.Services
             var result = (baseVolume, quotingVolume);
 
             _cachesManager.AddAssetPairTradeVolume(
-                $"{clientId}_{isUser}",
+                clientId,
                 assetPairId,
                 from,
                 to,
@@ -214,7 +213,7 @@ namespace Lykke.Service.TradeVolumes.Services
                 to = lastProcessedDate;
 
             if (_cachesManager.TryGetAssetTradeVolume(
-                $"{clientId}_{isUser}",
+                clientId,
                 assetId,
                 from,
                 to,
@@ -232,7 +231,7 @@ namespace Lykke.Service.TradeVolumes.Services
             result = Math.Round(result, 8);
 
             _cachesManager.AddAssetTradeVolume(
-                $"{clientId}_{isUser}",
+                clientId,
                 assetId,
                 from,
                 to,

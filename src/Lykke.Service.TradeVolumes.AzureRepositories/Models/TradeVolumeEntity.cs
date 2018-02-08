@@ -26,7 +26,6 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories.Models
             public static TradeVolumeEntity Create(
                 DateTime datetime,
                 string userId,
-                string walletId,
                 string baseAssetId,
                 double? baseVolume,
                 string quotingAssetId,
@@ -37,7 +36,6 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories.Models
                     PartitionKey = GeneratePartitionKey(datetime),
                     RowKey = GenerateRowKey(userId),
                     UserId = userId,
-                    WalletId = walletId,
                     BaseAssetId = baseAssetId,
                     BaseVolume = baseVolume,
                     QuotingAssetId = quotingAssetId,
