@@ -17,8 +17,8 @@ namespace Lykke.Service.TradeVolumes.Services
         private readonly ITradeVolumesRepository _tradeVolumesRepository;
         private readonly ILog _log;
         private readonly ICachesManager _cachesManager;
-        private readonly ConcurrentDictionary<string, (List<string>, DateTime)> _tradesDict =
-            new ConcurrentDictionary<string, (List<string>, DateTime)>();
+        private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, (List<string>, DateTime)>> _tradesDict =
+            new ConcurrentDictionary<string, ConcurrentDictionary<string, (List<string>, DateTime)>>();
         private readonly TimeSpan _warningDelay;
         private readonly TimeSpan _cacheTimeout;
 
@@ -78,23 +78,42 @@ namespace Lykke.Service.TradeVolumes.Services
                         foreach (var item in oppositeAssetGroup)
                         {
                             if (!_tradesDict.ContainsKey(item.TradeId)
-                                || !_tradesDict[item.TradeId].Item1.Contains(item.Asset))
+                                || !_tradesDict[item.TradeId].ContainsKey(item.UserId)
+                                || !_tradesDict[item.TradeId][item.UserId].Item1.Contains(item.Asset))
                             {
                                 var userVolumes = volumes[item.UserId];
                                 userVolumes[0] += (double)item.Volume;
                                 userVolumes[1] += item.OppositeVolume.HasValue ? (double)item.OppositeVolume.Value : 0;
                                 if (!_tradesDict.ContainsKey(item.TradeId))
-                                    _tradesDict.TryAdd(item.TradeId, (new List<string>(2) { item.Asset }, DateTime.UtcNow));
+                                {
+                                    var usersDataDict = new ConcurrentDictionary<string, (List<string>, DateTime)>();
+                                    usersDataDict.TryAdd(item.UserId, (new List<string>(2) { item.Asset }, DateTime.UtcNow));
+                                    _tradesDict.TryAdd(item.TradeId, usersDataDict);
+                                }
                                 else
-                                    _tradesDict[item.TradeId].Item1.Add(item.Asset);
+                                {
+                                    var usersDataDict = _tradesDict[item.TradeId];
+                                    if (!usersDataDict.ContainsKey(item.UserId))
+                                        usersDataDict.TryAdd(item.UserId, (new List<string>(2) { item.Asset }, DateTime.UtcNow));
+                                    else
+                                        usersDataDict[item.UserId].Item1.Add(item.Asset);
+                                }
                             }
                             else
                             {
-                                var tradeAssets = _tradesDict[item.TradeId].Item1;
+                                var tradeUsersData = _tradesDict[item.TradeId];
+                                var tradeAssets = tradeUsersData[item.UserId].Item1;
                                 if (tradeAssets.Count == 1)
-                                    _tradesDict.TryRemove(item.TradeId, out _);
+                                {
+                                    if (tradeUsersData.Count == 1)
+                                        _tradesDict.TryRemove(item.TradeId, out _);
+                                    else
+                                        tradeUsersData.TryRemove(item.UserId, out _);
+                                }
                                 else
+                                {
                                     tradeAssets.Remove(item.Asset);
+                                }
                             }
 
                             var walletVolumes = volumes[item.WalletId];
@@ -145,8 +164,11 @@ namespace Lykke.Service.TradeVolumes.Services
             var keysToDelete = new List<string>();
             foreach (var tradeInfo in _tradesDict)
             {
-                if (tradeInfo.Value.Item2.Subtract(now) >= _cacheTimeout)
-                    keysToDelete.Add(tradeInfo.Key);
+                foreach (var tradeUserInfo in tradeInfo.Value)
+                {
+                    if (tradeUserInfo.Value.Item2.Subtract(now) >= _cacheTimeout)
+                        keysToDelete.Add(tradeInfo.Key);
+                }
             }
             foreach (var key in keysToDelete)
             {
