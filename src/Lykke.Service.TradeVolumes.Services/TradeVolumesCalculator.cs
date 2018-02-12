@@ -101,6 +101,9 @@ namespace Lykke.Service.TradeVolumes.Services
                             }
                             else
                             {
+                                var userVolumes = volumes[item.UserId];
+                                userVolumes[0] -= (double)item.Volume;
+                                userVolumes[1] -= item.OppositeVolume.HasValue ? (double)item.OppositeVolume.Value : 0;
                                 var tradeUsersData = _tradesDict[item.TradeId];
                                 var tradeAssets = tradeUsersData[item.UserId].Item1;
                                 if (tradeAssets.Count == 1)
