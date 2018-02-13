@@ -25,5 +25,7 @@ namespace Lykke.Service.TradeVolumes.Core.Repositories
             DateTime from,
             DateTime to,
             bool isUser);
+        string GetUserVolumeKey(string userId);
+        string GetWalletVolumeKey(string walletId);
     }
 }

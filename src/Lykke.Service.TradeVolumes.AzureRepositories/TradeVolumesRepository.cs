@@ -129,7 +129,7 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
                     ? userTradeVolume.BaseVolume.Value : 0;
                 double quotingVolume = userTradeVolume != null && userTradeVolume.QuotingVolume.HasValue
                     ? userTradeVolume.QuotingVolume.Value : 0;
-                result.Add(userId, new double[2] { baseVolume, quotingVolume });
+                result.Add(GetUserVolumeKey(userId), new double[2] { baseVolume, quotingVolume });
             }
             foreach (var walletId in walletIds)
             {
@@ -139,9 +139,19 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
                     ? walletTradeVolume.BaseVolume.Value : 0;
                 double quotingVolume = walletTradeVolume != null && walletTradeVolume.QuotingVolume.HasValue
                     ? walletTradeVolume.QuotingVolume.Value : 0;
-                result.Add(walletId, new double[2] { baseVolume, quotingVolume });
+                result.Add(GetWalletVolumeKey(walletId), new double[2] { baseVolume, quotingVolume });
             }
             return result;
+        }
+
+        public string GetUserVolumeKey(string userId)
+        {
+            return $"u_{userId}";
+        }
+
+        public string GetWalletVolumeKey(string walletId)
+        {
+            return $"w_{walletId}";
         }
 
         public async Task<(double, double)> GetPeriodClientVolumeAsync(
