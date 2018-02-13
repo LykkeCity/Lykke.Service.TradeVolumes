@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.SwaggerGen;
 using Common;
+using Common.Log;
 using Lykke.Service.TradeVolumes.Core;
 using Lykke.Service.TradeVolumes.Core.Services;
 using Lykke.Service.TradeVolumes.Models;
@@ -15,10 +16,12 @@ namespace Lykke.Service.TradeVolumes.Controllers
     public class TradeVolumesController : Controller
     {
         private readonly ITradeVolumesCalculator _tradeVolumesCalculator;
+        private readonly ILog _log;
 
-        public TradeVolumesController(ITradeVolumesCalculator tradeVolumesCalculator)
+        public TradeVolumesController(ITradeVolumesCalculator tradeVolumesCalculator, ILog log)
         {
             _tradeVolumesCalculator = tradeVolumesCalculator;
+            _log = log;
         }
 
         /// <summary>
@@ -111,6 +114,8 @@ namespace Lykke.Service.TradeVolumes.Controllers
                 }
                 catch (Exception ex) when (ex is UnknownPairException || ex is UnknownAssetException)
                 {
+                    _log.WriteWarning(nameof(GetPeriodAssetPairsTradeVolume), new { AssetPairId = assetPairId, FromDate = fromDate, ToDate = toDate},
+                        $"{assetPairId} not found", ex);
                 }
             }
 
