@@ -1,12 +1,13 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Net;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.SwaggerGen;
 using Common;
+using Common.Log;
 using Lykke.Service.TradeVolumes.Core;
 using Lykke.Service.TradeVolumes.Core.Services;
-using Lykke.Service.TradeVolumes.Services;
 using Lykke.Service.TradeVolumes.Models;
 
 namespace Lykke.Service.TradeVolumes.Controllers
@@ -15,10 +16,12 @@ namespace Lykke.Service.TradeVolumes.Controllers
     public class TradeVolumesController : Controller
     {
         private readonly ITradeVolumesCalculator _tradeVolumesCalculator;
+        private readonly ILog _log;
 
-        public TradeVolumesController(ITradeVolumesCalculator tradeVolumesCalculator)
+        public TradeVolumesController(ITradeVolumesCalculator tradeVolumesCalculator, ILog log)
         {
             _tradeVolumesCalculator = tradeVolumesCalculator;
+            _log = log;
         }
 
         /// <summary>
@@ -61,6 +64,62 @@ namespace Lykke.Service.TradeVolumes.Controllers
                 Constants.AllClients,
                 fromDate,
                 toDate);
+        }
+        
+        /// <summary>
+        /// Calculates trade volume of assetPairs within specified time period.
+        /// </summary>
+        /// <param name="assetPairIds">AssetPair Ids</param>
+        /// <param name="fromDate">Start DateTime (Inclusive) with hour precision</param>
+        /// <param name="toDate">Finish DateTime (Exclusive) with hour precision</param>
+        [HttpPost("pairs/all/{fromDate}/{toDate}")]
+        [SwaggerOperation("GetPeriodAssetPairsTradeVolume")]
+        [ProducesResponseType(typeof(List<AssetPairTradeVolumeResponse>), (int)HttpStatusCode.OK)]
+        public async Task<IActionResult> GetPeriodAssetPairsTradeVolume(
+            [FromBody]string[] assetPairIds,
+            [FromRoute]DateTime fromDate,
+            [FromRoute]DateTime toDate)
+        {
+            if (assetPairIds == null || assetPairIds.Length == 0)
+                return StatusCode(
+                    (int)HttpStatusCode.BadRequest,
+                    ErrorResponse.Create("AssetPairIds parameter is empty"));
+
+            if (fromDate >= toDate)
+                return StatusCode(
+                    (int)HttpStatusCode.BadRequest,
+                    ErrorResponse.Create("fromDate must be earlier than toDate"));
+
+            var result = new List<AssetPairTradeVolumeResponse>();
+            
+            foreach (string assetPairId in assetPairIds)
+            {
+                try
+                {
+                    (double baseVolume, double quotingVolume) = await GetPeriodAssetPairTradeVolume(
+                        assetPairId,
+                        Constants.AllClients,
+                        fromDate,
+                        toDate,
+                        true);
+
+                    result.Add(
+                        new AssetPairTradeVolumeResponse
+                        {
+                            AssetPairId = assetPairId,
+                            ClientId = Constants.AllClients,
+                            BaseVolume = baseVolume,
+                            QuotingVolume = quotingVolume,
+                        });
+                }
+                catch (Exception ex) when (ex is UnknownPairException || ex is UnknownAssetException)
+                {
+                    _log.WriteWarning(nameof(GetPeriodAssetPairsTradeVolume), new { AssetPairId = assetPairId, FromDate = fromDate, ToDate = toDate},
+                        $"{assetPairId} not found", ex);
+                }
+            }
+
+            return Ok(result);
         }
 
         /// <summary>
