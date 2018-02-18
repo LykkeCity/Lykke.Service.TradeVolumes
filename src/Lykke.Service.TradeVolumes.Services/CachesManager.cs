@@ -114,6 +114,12 @@ namespace Lykke.Service.TradeVolumes.Services
             assetPairDict.TryAdd(periodKey, tradeVolumes);
         }
 
+        public void ClearClientCache(string clientId)
+        {
+            _assetVolumesCache.TryRemove(clientId, out _);
+            _assetPairVolumesCache.TryRemove(clientId, out _);
+        }
+
         private bool IsCahedPeriod(DateTime from)
         {
             DateTime now = DateTime.UtcNow.RoundToHour();

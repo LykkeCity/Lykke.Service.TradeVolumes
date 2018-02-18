@@ -1,4 +1,6 @@
-﻿namespace Lykke.Service.TradeVolumes.Settings
+﻿using Lykke.SettingsReader.Attributes;
+
+namespace Lykke.Service.TradeVolumes.Settings
 {
     public class AppSettings
     {
@@ -11,6 +13,7 @@
 
     public class AssetsServiceClientSettings
     {
+        [HttpCheck("api/isalive")]
         public string ServiceUrl { get; set; }
     }
 
@@ -28,14 +31,19 @@
 
     public class TradeVolumesSettings
     {
+        [AzureTableCheck]
         public string LogsConnString { get; set; }
 
+        [AzureTableCheck]
         public string TradeVolumesConnString { get; set; }
 
+        [AmqpCheck]
         public string RabbitMqConnString { get; set; }
 
         public string TradelogExchangeName { get; set; }
 
         public int WarningDelayInHours { get; set; }
+
+        public int TradesCacheTimeoutInHours { get; set; }
     }
 }
