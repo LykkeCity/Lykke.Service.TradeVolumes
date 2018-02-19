@@ -141,17 +141,14 @@ namespace Lykke.Service.TradeVolumes.Services
                                         return (walletsMap[w], w, walletVolume[0], walletVolume[1]);
                                     })
                                 .ToList());
-
-                        foreach (var userId in usersHash)
-                        {
-                            _cachesManager.ClearClientCache(userId);
-                        }
-                        foreach (var walletId in walletsHash)
-                        {
-                            _cachesManager.ClearClientCache(walletId);
-                        }
                     }
                 }
+            }
+
+            foreach (var pair in walletsMap)
+            {
+                _cachesManager.ClearClientCache(pair.Key);
+                _cachesManager.ClearClientCache(pair.Value);
             }
 
             var dateTime = items.Max(i => i.DateTime);
