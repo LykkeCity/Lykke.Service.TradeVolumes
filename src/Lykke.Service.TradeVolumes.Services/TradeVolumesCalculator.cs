@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Common;
 using Common.Log;
 using Lykke.Job.TradesConverter.Contract;
+using Lykke.Service.TradeVolumes.Core;
 using Lykke.Service.TradeVolumes.Core.Services;
 using Lykke.Service.TradeVolumes.Core.Repositories;
 
@@ -202,7 +203,7 @@ namespace Lykke.Service.TradeVolumes.Services
             if (lastProcessedDate < to)
                 to = lastProcessedDate;
 
-            if (_cachesManager.TryGetAssetPairTradeVolume(
+            if (clientId != Constants.AllClients && _cachesManager.TryGetAssetPairTradeVolume(
                 clientId,
                 assetPairId,
                 from,
@@ -222,12 +223,13 @@ namespace Lykke.Service.TradeVolumes.Services
             quotingVolume = Math.Round(quotingVolume, 8);
             var result = (baseVolume, quotingVolume);
 
-            _cachesManager.AddAssetPairTradeVolume(
-                clientId,
-                assetPairId,
-                from,
-                to,
-                result);
+            if (clientId != Constants.AllClients)
+                _cachesManager.AddAssetPairTradeVolume(
+                    clientId,
+                    assetPairId,
+                    from,
+                    to,
+                    result);
 
             return result;
         }
@@ -245,7 +247,7 @@ namespace Lykke.Service.TradeVolumes.Services
             if (lastProcessedDate < to)
                 to = lastProcessedDate;
 
-            if (_cachesManager.TryGetAssetTradeVolume(
+            if (clientId != Constants.AllClients && _cachesManager.TryGetAssetTradeVolume(
                 clientId,
                 assetId,
                 from,
@@ -263,12 +265,13 @@ namespace Lykke.Service.TradeVolumes.Services
 
             result = Math.Round(result, 8);
 
-            _cachesManager.AddAssetTradeVolume(
-                clientId,
-                assetId,
-                from,
-                to,
-                result);
+            if (clientId != Constants.AllClients)
+                _cachesManager.AddAssetTradeVolume(
+                    clientId,
+                    assetId,
+                    from,
+                    to,
+                    result);
 
             return result;
         }
