@@ -168,6 +168,12 @@ namespace Lykke.Service.TradeVolumes.Services
             }
             if (!_lastProcessedDate.HasValue || dateTime > _lastProcessedDate.Value)
                 _lastProcessedDate = dateTime;
+
+            if (_tradesDict.Count > 1000)
+                await _log.WriteWarningAsync(
+                    nameof(TradeVolumesCalculator),
+                    nameof(AddTradeLogItemsAsync),
+                    $"Tradelog items cache has {_tradesDict.Count} items!");
         }
 
         public override Task Execute()
