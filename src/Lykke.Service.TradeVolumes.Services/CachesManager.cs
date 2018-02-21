@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Linq;
 using System.Collections.Generic;
 using System.Collections.Concurrent;
 using System.Threading.Tasks;
@@ -18,7 +17,6 @@ namespace Lykke.Service.TradeVolumes.Services
             = new ConcurrentDictionary<string, ConcurrentDictionary<string, ConcurrentDictionary<int, double>>>();
         private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, ConcurrentDictionary<int, (double, double)>>> _assetPairVolumesCache
             = new ConcurrentDictionary<string, ConcurrentDictionary<string, ConcurrentDictionary<int, (double, double)>>>();
-        private readonly ConcurrentDictionary<string, DateTime> _clearedIds = new ConcurrentDictionary<string, DateTime>();
 
         public CachesManager(ILog log)
             : base((int)TimeSpan.FromMinutes(15).TotalMilliseconds, log)
@@ -47,9 +45,7 @@ namespace Lykke.Service.TradeVolumes.Services
                 && clientDict.TryGetValue(assetId, out var assetDict)
                 && assetDict.TryGetValue(periodKey, out result))
             {
-                if (!_clearedIds.ContainsKey(clientId))
-                    return true;
-                _clearedIds.TryRemove(clientId, out _);
+                return true;
             }
             result = 0;
             return false;
@@ -63,8 +59,6 @@ namespace Lykke.Service.TradeVolumes.Services
             double tradeVolume)
         {
             if (!IsCahedPeriod(from))
-                return;
-            if (_clearedIds.ContainsKey(clientId))
                 return;
 
             if (!_assetVolumesCache.TryGetValue(clientId, out var clientDict))
@@ -99,9 +93,7 @@ namespace Lykke.Service.TradeVolumes.Services
                 && clientDict.TryGetValue(assetPairId, out var assetPairDict)
                 && assetPairDict.TryGetValue(periodKey, out result))
             {
-                if (!_clearedIds.ContainsKey(clientId))
-                    return true;
-                _clearedIds.TryRemove(clientId, out _);
+                return true;
             }
             result = (0,0);
             return false;
@@ -115,8 +107,6 @@ namespace Lykke.Service.TradeVolumes.Services
             (double, double) tradeVolumes)
         {
             if (!IsCahedPeriod(from))
-                return;
-            if (_clearedIds.ContainsKey(clientId))
                 return;
 
             if (!_assetPairVolumesCache.TryGetValue(clientId, out var clientDict))
@@ -136,13 +126,6 @@ namespace Lykke.Service.TradeVolumes.Services
 
             if (_assetPairVolumesCache.Count > 1000)
                 _log.WriteWarning(nameof(CachesManager), nameof(AddAssetPairTradeVolume), $"Already {_assetPairVolumesCache.Count} items in asset pair cache");
-        }
-
-        public void ClearClientCache(string clientId)
-        {
-            _assetVolumesCache.TryRemove(clientId, out _);
-            _assetPairVolumesCache.TryRemove(clientId, out _);
-            _clearedIds.TryAdd(clientId, DateTime.UtcNow);
         }
 
         private bool IsCahedPeriod(DateTime from)
@@ -198,14 +181,6 @@ namespace Lykke.Service.TradeVolumes.Services
             foreach (var client in clientsToRemove)
             {
                 cache.Remove(client, out var _);
-            }
-
-            var idsToCheck = _clearedIds.Keys.ToList();
-            foreach (var id in idsToCheck)
-            {
-                var idTime = _clearedIds[id];
-                if (now.Subtract(idTime).TotalMinutes > 5)
-                    _clearedIds.TryRemove(id, out _);
             }
         }
     }

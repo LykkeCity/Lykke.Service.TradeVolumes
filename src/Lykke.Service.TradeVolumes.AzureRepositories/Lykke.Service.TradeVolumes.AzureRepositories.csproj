@@ -6,9 +6,9 @@
     <Version>1.0.0</Version>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Lykke.Service.TradeVolumes.Core\Lykke.Service.TradeVolumes.Core.csproj" />
+    <PackageReference Include="Lykke.AzureStorage" Version="5.0.2" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Lykke.AzureStorage" Version="5.0.1" />
+    <ProjectReference Include="..\Lykke.Service.TradeVolumes.Core\Lykke.Service.TradeVolumes.Core.csproj" />
   </ItemGroup>
 </Project>

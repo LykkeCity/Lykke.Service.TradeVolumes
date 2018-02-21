@@ -28,6 +28,5 @@ namespace Lykke.Service.TradeVolumes.Core.Services
             DateTime from,
             DateTime to,
             (double, double) tradeVolumes);
-        void ClearClientCache(string clientId);
     }
 }
