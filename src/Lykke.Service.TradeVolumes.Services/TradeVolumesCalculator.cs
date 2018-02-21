@@ -213,14 +213,9 @@ namespace Lykke.Service.TradeVolumes.Services
             DateTime to,
             bool isUser)
         {
-            var lastProcessedDate = DateTime.UtcNow.RoundToHour();
-            if (_lastProcessedDate.HasValue)
-            {
-                if (lastProcessedDate.Subtract(_lastProcessedDate.Value.RoundToHour()).TotalHours >= 1)
-                    lastProcessedDate = _lastProcessedDate.Value.RoundToHour().AddHours(1);
-                else
-                    lastProcessedDate = _lastProcessedDate.Value.RoundToHour();
-            }
+            var lastProcessedDate = _lastProcessedDate.HasValue
+                ? _lastProcessedDate.Value.RoundToHour().AddHours(1)
+                 : DateTime.UtcNow.RoundToHour();
             if (lastProcessedDate < to)
                 to = lastProcessedDate;
 
@@ -279,14 +274,9 @@ namespace Lykke.Service.TradeVolumes.Services
             DateTime to,
             bool isUser)
         {
-            var lastProcessedDate = DateTime.UtcNow.RoundToHour();
-            if (_lastProcessedDate.HasValue)
-            {
-                if (lastProcessedDate.Subtract(_lastProcessedDate.Value.RoundToHour()).TotalHours >= 1)
-                    lastProcessedDate = _lastProcessedDate.Value.RoundToHour().AddHours(1);
-                else
-                    lastProcessedDate = _lastProcessedDate.Value.RoundToHour();
-            }
+            var lastProcessedDate = _lastProcessedDate.HasValue
+                ? _lastProcessedDate.Value.RoundToHour().AddHours(1)
+                 : DateTime.UtcNow.RoundToHour();
             if (lastProcessedDate < to)
                 to = lastProcessedDate;
 
@@ -345,6 +335,10 @@ namespace Lykke.Service.TradeVolumes.Services
             Dictionary<string, double[]> volumesDict)
         {
             var assetPairId = await _assetsDictionary.GetAssetPairIdAsync(assetId, oppositeAssetId);
+            (string baseAssetId, string quotingAssetId) = await _assetsDictionary.GetAssetIdsAsync(assetPairId);
+            if (assetId != baseAssetId && oppositeAssetId != quotingAssetId)
+                return;
+
             foreach (var userId in usersHash)
             {
                 var userVolume = volumesDict[_tradeVolumesRepository.GetUserVolumeKey(userId)];

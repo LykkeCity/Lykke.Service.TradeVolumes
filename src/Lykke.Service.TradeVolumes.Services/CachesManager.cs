@@ -87,11 +87,6 @@ namespace Lykke.Service.TradeVolumes.Services
             DateTime time,
             double tradeVolume)
         {
-            _log.WriteInfo(
-                nameof(CachesManager),
-                nameof(UpdateAssetTradeVolume),
-                $"Looking for {assetId} cache for client {clientId} on {time} with {tradeVolume}");
-
             if (!_assetVolumesCache.TryGetValue(clientId, out var clientDict))
                 return;
 
@@ -168,11 +163,6 @@ namespace Lykke.Service.TradeVolumes.Services
             DateTime time,
             (double, double) tradeVolumes)
         {
-            _log.WriteInfo(
-                nameof(CachesManager),
-                nameof(UpdateAssetPairTradeVolume),
-                $"Looking for {assetPairId} cache for client {clientId} on {time} with ({tradeVolumes.Item1}, {tradeVolumes.Item2})");
-
             if (!_assetPairVolumesCache.TryGetValue(clientId, out var clientDict))
                 return;
 
