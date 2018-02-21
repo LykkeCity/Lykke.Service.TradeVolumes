@@ -198,13 +198,19 @@ namespace Lykke.Service.TradeVolumes.Services
             DateTime to,
             bool isUser)
         {
-            var lastProcessedDate = _lastProcessedDate.HasValue
-                ? _lastProcessedDate.Value.RoundToHour()
-                : DateTime.UtcNow.RoundToHour();
+            var lastProcessedDate = DateTime.UtcNow.RoundToHour();
+            if (_lastProcessedDate.HasValue)
+            {
+                if (lastProcessedDate.Subtract(_lastProcessedDate.Value.RoundToHour()).TotalHours >= 1)
+                    lastProcessedDate = _lastProcessedDate.Value.RoundToHour().AddHours(1);
+                else
+                    lastProcessedDate = _lastProcessedDate.Value.RoundToHour();
+            }
             if (lastProcessedDate < to)
                 to = lastProcessedDate;
 
-            if (clientId != Constants.AllClients)
+            if (clientId != Constants.AllClients
+                && to.Subtract(from).TotalDays <= Constants.MaxPeriodInDays)
             {
                 if (_cachesManager.TryGetAssetPairTradeVolume(
                     clientId,
@@ -231,13 +237,15 @@ namespace Lykke.Service.TradeVolumes.Services
             quotingVolume = Math.Round(quotingVolume, 8);
             var result = (baseVolume, quotingVolume);
 
-            if (clientId != Constants.AllClients)
+            if (clientId != Constants.AllClients
+                && to.Subtract(from).TotalDays <= Constants.MaxPeriodInDays)
             {
-                if (baseVolume == 0 && quotingVolume == 0)
-                    await _log.WriteInfoAsync(
-                        nameof(ITradeVolumesCalculator),
-                        nameof(GetPeriodAssetPairVolumeAsync),
-                        $"Couldn't find {assetPairId} volumes for client {clientId} in period {from} to {to}");
+                await _log.WriteInfoAsync(
+                    nameof(ITradeVolumesCalculator),
+                    nameof(GetPeriodAssetPairVolumeAsync),
+                    baseVolume == 0 && quotingVolume == 0
+                        ? $"Couldn't find {assetPairId} volumes for client {clientId} in period {from} to {to}"
+                        : $"Cached ({baseVolume}, {quotingVolume}) on {assetPairId} volumes for client {clientId} in period {from} to {to}");
                 _cachesManager.AddAssetPairTradeVolume(
                     clientId,
                     assetPairId,
@@ -256,13 +264,19 @@ namespace Lykke.Service.TradeVolumes.Services
             DateTime to,
             bool isUser)
         {
-            var lastProcessedDate = _lastProcessedDate.HasValue
-                ? _lastProcessedDate.Value.RoundToHour()
-                : DateTime.UtcNow.RoundToHour();
+            var lastProcessedDate = DateTime.UtcNow.RoundToHour();
+            if (_lastProcessedDate.HasValue)
+            {
+                if (lastProcessedDate.Subtract(_lastProcessedDate.Value.RoundToHour()).TotalHours >= 1)
+                    lastProcessedDate = _lastProcessedDate.Value.RoundToHour().AddHours(1);
+                else
+                    lastProcessedDate = _lastProcessedDate.Value.RoundToHour();
+            }
             if (lastProcessedDate < to)
                 to = lastProcessedDate;
 
-            if (clientId != Constants.AllClients)
+            if (clientId != Constants.AllClients
+                && to.Subtract(from).TotalDays <= Constants.MaxPeriodInDays)
             {
                 if (_cachesManager.TryGetAssetTradeVolume(
                     clientId,
@@ -287,13 +301,15 @@ namespace Lykke.Service.TradeVolumes.Services
 
             result = Math.Round(result, 8);
 
-            if (clientId != Constants.AllClients)
+            if (clientId != Constants.AllClients
+                && to.Subtract(from).TotalDays <= Constants.MaxPeriodInDays)
             {
-                if (result == 0)
-                    await _log.WriteInfoAsync(
-                        nameof(ITradeVolumesCalculator),
-                        nameof(GetPeriodAssetVolumeAsync),
-                        $"Couldn't find {assetId} volume for client {clientId} in period {from} to {to}");
+                await _log.WriteInfoAsync(
+                    nameof(ITradeVolumesCalculator),
+                    nameof(GetPeriodAssetVolumeAsync),
+                    result == 0
+                        ? $"Couldn't find {assetId} volume for client {clientId} in period {from} to {to}"
+                        : $"Cached {result} on {assetId} volume for client {clientId} in period {from} to {to}");
                 _cachesManager.AddAssetTradeVolume(
                     clientId,
                     assetId,

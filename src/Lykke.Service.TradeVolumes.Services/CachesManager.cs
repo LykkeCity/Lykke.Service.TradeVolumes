@@ -4,13 +4,14 @@ using System.Collections.Concurrent;
 using System.Threading.Tasks;
 using Common;
 using Common.Log;
+using Lykke.Service.TradeVolumes.Core;
 using Lykke.Service.TradeVolumes.Core.Services;
 
 namespace Lykke.Service.TradeVolumes.Services
 {
     public class CachesManager : TimerPeriod, ICachesManager
     {
-        private const int _cacheLifeHoursCount = 24 * 31;
+        private const int _cacheLifeHoursCount = 24 * Constants.MaxPeriodInDays;
 
         private readonly ILog _log;
         private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, ConcurrentDictionary<int, double>>> _assetVolumesCache
@@ -149,8 +150,8 @@ namespace Lykke.Service.TradeVolumes.Services
         private void CleanUpCache<T>(ConcurrentDictionary<string, ConcurrentDictionary<string, ConcurrentDictionary<int, T>>> cache)
         {
             DateTime now = DateTime.UtcNow.RoundToHour();
-            DateTime oldestPossible = now.AddHours(-_cacheLifeHoursCount);
-            int periodKey = GetPeriodKey(oldestPossible, oldestPossible);
+            DateTime cacheStart = now.AddDays(-1);
+            int periodKey = GetPeriodKey(cacheStart, cacheStart);
 
             var clientsToRemove = new List<string>();
             foreach (var clientPair in cache)
