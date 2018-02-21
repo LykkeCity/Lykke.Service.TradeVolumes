@@ -51,6 +51,31 @@ namespace Lykke.Service.TradeVolumes.Services
             return result;
         }
 
+        public async Task<string> GetAssetPairIdAsync(string asset1, string asset2)
+        {
+            string id1 = $"{asset1}{asset2}";
+            if (_pairsDict.ContainsKey(id1))
+                return id1;
+
+            string id2 = $"{asset2}{asset1}";
+            if (_pairsDict.ContainsKey(id2))
+                return id2;
+
+            var pair = await _assetsService.AssetPairGetAsync(id1);
+            if (pair != null)
+            {
+                _pairsDict.TryAdd(pair.Id, pair);
+                return pair.Id;
+            }
+
+            pair = await _assetsService.AssetPairGetAsync(id2);
+            if (pair == null)
+                throw new UnknownPairException($"Unknown pair of assets: {asset1} and {asset2}!");
+
+            _pairsDict.TryAdd(pair.Id, pair);
+            return pair.Id;
+        }
+
         private string CleanupNameForTable(string name)
         {
             return name.Replace(" ", "").Replace("_", "").Replace("-", "").ToUpper();

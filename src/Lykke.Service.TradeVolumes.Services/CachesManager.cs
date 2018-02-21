@@ -4,13 +4,14 @@ using System.Collections.Concurrent;
 using System.Threading.Tasks;
 using Common;
 using Common.Log;
+using Lykke.Service.TradeVolumes.Core;
 using Lykke.Service.TradeVolumes.Core.Services;
 
 namespace Lykke.Service.TradeVolumes.Services
 {
     public class CachesManager : TimerPeriod, ICachesManager
     {
-        private const int _cacheLifeHoursCount = 24 * 31;
+        private const int _cacheLifeHoursCount = 24 * Constants.MaxPeriodInDays;
 
         private readonly ILog _log;
         private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, ConcurrentDictionary<int, double>>> _assetVolumesCache
@@ -80,6 +81,29 @@ namespace Lykke.Service.TradeVolumes.Services
                 _log.WriteWarning(nameof(CachesManager), nameof(AddAssetTradeVolume), $"Already {_assetVolumesCache.Count} items in asset cache");
         }
 
+        public void UpdateAssetTradeVolume(
+            string clientId,
+            string assetId,
+            DateTime time,
+            double tradeVolume)
+        {
+            if (!_assetVolumesCache.TryGetValue(clientId, out var clientDict))
+                return;
+
+            clientDict = _assetVolumesCache[clientId];
+            if (!clientDict.TryGetValue(assetId, out var assetDict))
+                return;
+
+            assetDict = clientDict[assetId];
+            foreach (var pair in assetDict)
+            {
+                if (!IsInPeriod(time, pair.Key))
+                    continue;
+
+                assetDict[pair.Key] += tradeVolume;
+            }
+        }
+
         public bool TryGetAssetPairTradeVolume(
             string clientId,
             string assetPairId,
@@ -128,6 +152,29 @@ namespace Lykke.Service.TradeVolumes.Services
                 _log.WriteWarning(nameof(CachesManager), nameof(AddAssetPairTradeVolume), $"Already {_assetPairVolumesCache.Count} items in asset pair cache");
         }
 
+        public void UpdateAssetPairTradeVolume(
+            string clientId,
+            string assetPairId,
+            DateTime time,
+            (double, double) tradeVolumes)
+        {
+            if (!_assetPairVolumesCache.TryGetValue(clientId, out var clientDict))
+                return;
+
+            clientDict = _assetPairVolumesCache[clientId];
+            if (!clientDict.TryGetValue(assetPairId, out var assetPairDict))
+                return;
+
+            assetPairDict = clientDict[assetPairId];
+            foreach (var pair in assetPairDict)
+            {
+                if (!IsInPeriod(time, pair.Key))
+                    continue;
+
+                assetPairDict[pair.Key] = tradeVolumes;
+            }
+        }
+
         private bool IsCahedPeriod(DateTime from)
         {
             DateTime now = DateTime.UtcNow.RoundToHour();
@@ -138,19 +185,30 @@ namespace Lykke.Service.TradeVolumes.Services
         private int GetPeriodKey(DateTime from, DateTime to)
         {
             var hoursLength = (int)to.Subtract(from).TotalHours;
-            int key = ((((from.Year % 100) * 13 // max number of months + 1
-                + from.Month) * 32 // max number of days + 1
-                + from.Day) * 25 // max number of hours + 1
-                + from.Hour) * (_cacheLifeHoursCount + 1)
-                + hoursLength;
+            int key = CalculateKeyStart(from) + hoursLength;
             return key;
+        }
+
+        private int CalculateKeyStart(DateTime dateTime)
+        {
+            return ((((dateTime.Year % 100) * 13 // max number of months + 1
+                + dateTime.Month) * 32 // max number of days + 1
+                + dateTime.Day) * 25 // max number of hours + 1
+                + dateTime.Hour) * (_cacheLifeHoursCount + 1);
+        }
+
+        private bool IsInPeriod(DateTime time, int periodKey)
+        {
+            int keyStart = CalculateKeyStart(time);
+            int periodStart = periodKey - (periodKey % (_cacheLifeHoursCount + 1));
+            return periodKey >= keyStart && keyStart <= periodKey;
         }
 
         private void CleanUpCache<T>(ConcurrentDictionary<string, ConcurrentDictionary<string, ConcurrentDictionary<int, T>>> cache)
         {
             DateTime now = DateTime.UtcNow.RoundToHour();
-            DateTime oldestPossible = now.AddHours(-_cacheLifeHoursCount);
-            int periodKey = GetPeriodKey(oldestPossible, oldestPossible);
+            DateTime cachStart = now.AddDays(-1);
+            int periodKey = GetPeriodKey(cachStart, cachStart);
 
             var clientsToRemove = new List<string>();
             foreach (var clientPair in cache)
