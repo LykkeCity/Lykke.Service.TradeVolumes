@@ -1,4 +1,5 @@
-﻿using System.Collections.Concurrent;
+﻿using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.Threading.Tasks;
 using Lykke.Service.Assets.Client;
 using Lykke.Service.Assets.Client.Models;
@@ -53,6 +54,36 @@ namespace Lykke.Service.TradeVolumes.Services
 
         public async Task<string> GetAssetPairIdAsync(string asset1, string asset2)
         {
+            string result = await SearchForPairIdAsync(asset1, asset2);
+            if (result != null)
+                return result;
+
+            var info1 = await _assetsService.AssetGetAsync(asset1);
+            var info2 = await _assetsService.AssetGetAsync(asset2);
+
+            var items1 = new List<string> { info1.Name, info1.DisplayId, info1.Symbol };
+            var items2 = new List<string> { info2.Name, info2.DisplayId, info2.Symbol };
+            for (int i = 0; i < items1.Count; ++i)
+            {
+                if (string.IsNullOrWhiteSpace(items1[i]))
+                    continue;
+
+                for (int j = 0; j < items2.Count; ++j)
+                {
+                    if (string.IsNullOrWhiteSpace(items2[j]))
+                        continue;
+
+                    result = await SearchForPairIdAsync(items1[i], items2[j]);
+                    if (result != null)
+                        return result;
+                }
+            }
+
+            throw new UnknownPairException($"Unknown pair of assets: {asset1} and {asset2}!");
+        }
+
+        private async Task<string> SearchForPairIdAsync(string asset1, string asset2)
+        {
             string id1 = $"{asset1}{asset2}";
             if (_pairsDict.ContainsKey(id1))
                 return id1;
@@ -69,11 +100,13 @@ namespace Lykke.Service.TradeVolumes.Services
             }
 
             pair = await _assetsService.AssetPairGetAsync(id2);
-            if (pair == null)
-                throw new UnknownPairException($"Unknown pair of assets: {asset1} and {asset2}!");
+            if (pair != null)
+            {
+                _pairsDict.TryAdd(pair.Id, pair);
+                return pair.Id;
+            }
 
-            _pairsDict.TryAdd(pair.Id, pair);
-            return pair.Id;
+            return null;
         }
 
         private string CleanupNameForTable(string name)
