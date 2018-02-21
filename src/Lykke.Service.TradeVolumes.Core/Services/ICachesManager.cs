@@ -16,6 +16,11 @@ namespace Lykke.Service.TradeVolumes.Core.Services
             DateTime from,
             DateTime to,
             double tradeVolume);
+        void UpdateAssetTradeVolume(
+            string clientId,
+            string assetId,
+            DateTime time,
+            double tradeVolume);
         bool TryGetAssetPairTradeVolume(
             string clientId,
             string assetPairId,
@@ -27,6 +32,11 @@ namespace Lykke.Service.TradeVolumes.Core.Services
             string assetPairId,
             DateTime from,
             DateTime to,
+            (double, double) tradeVolumes);
+        void UpdateAssetPairTradeVolume(
+            string clientId,
+            string assetPairId,
+            DateTime time,
             (double, double) tradeVolumes);
     }
 }
