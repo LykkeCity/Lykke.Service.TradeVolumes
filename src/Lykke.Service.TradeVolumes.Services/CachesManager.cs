@@ -203,10 +203,22 @@ namespace Lykke.Service.TradeVolumes.Services
             (double, double) tradeVolumes)
         {
             if (!_assetPairVolumesCache.TryGetValue(clientId, out var clientDict))
+            {
+                _log.WriteInfo(
+                    nameof(CachesManager),
+                    nameof(UpdateAssetPairTradeVolume),
+                    $"Client {clientId} is not found in {assetPairId} cache on {time} with ({tradeVolumes.Item1}, {tradeVolumes.Item2})");
                 return;
+            }
 
             if (!clientDict.TryGetValue(assetPairId, out var assetDict))
+            {
+                _log.WriteInfo(
+                    nameof(CachesManager),
+                    nameof(UpdateAssetPairTradeVolume),
+                    $"Asset pair {assetPairId} is not found in cache on {time} with ({tradeVolumes.Item1}, {tradeVolumes.Item2})");
                 return;
+            }
 
             var periodStarts = new List<DateTime>(assetDict.Keys);
             foreach (var periodStart in periodStarts)

@@ -351,7 +351,13 @@ namespace Lykke.Service.TradeVolumes.Services
             var assetPairId = await _assetsDictionary.GetAssetPairIdAsync(assetId, oppositeAssetId);
             (string baseAssetId, string quotingAssetId) = await _assetsDictionary.GetAssetIdsAsync(assetPairId);
             if (assetId != baseAssetId && oppositeAssetId != quotingAssetId)
+            {
+                await _log.WriteInfoAsync(
+                    nameof(TradeVolumesCalculator),
+                    nameof(UpdateVolumesCacheAsync),
+                    $"{assetId} and {oppositeAssetId} are not equal to {assetId} for {clientId} on {time} with ({baseVolume}, {quotingVolume})");
                 return;
+            }
 
             _cachesManager.UpdateAssetPairTradeVolume(
                     clientId,
