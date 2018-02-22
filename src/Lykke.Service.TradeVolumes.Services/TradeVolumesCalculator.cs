@@ -85,6 +85,13 @@ namespace Lykke.Service.TradeVolumes.Services
                             {
                                 userVolumes[0] += (double)item.Volume;
                                 userVolumes[1] += item.OppositeVolume.HasValue ? (double)item.OppositeVolume.Value : 0;
+                                await UpdateVolumesCacheAsync(
+                                    assetGroup.Key,
+                                    oppositeAssetGroup.Key,
+                                    item.WalletId,
+                                    item.DateTime,
+                                    (double)item.Volume,
+                                    item.OppositeVolume.HasValue ? (double)item.OppositeVolume.Value : 0);
                                 if (_tradesDict.ContainsKey(item.TradeId))
                                 {
                                     var usersDataDict = _tradesDict[item.TradeId];
@@ -104,6 +111,14 @@ namespace Lykke.Service.TradeVolumes.Services
                             {
                                 userVolumes[0] -= (double)item.Volume;
                                 userVolumes[1] -= item.OppositeVolume.HasValue ? (double)item.OppositeVolume.Value : 0;
+                                await UpdateVolumesCacheAsync(
+                                    assetGroup.Key,
+                                    oppositeAssetGroup.Key,
+                                    item.UserId,
+                                    item.DateTime,
+                                    (double)-item.Volume,
+                                    item.OppositeVolume.HasValue ? (double)-item.OppositeVolume.Value : 0);
+
                                 var tradeUsersData = _tradesDict[item.TradeId];
                                 var tradeAssets = tradeUsersData[item.UserId].Item1;
                                 if (tradeAssets.Count == 1)
@@ -123,12 +138,13 @@ namespace Lykke.Service.TradeVolumes.Services
                             walletVolumes[0] += (double)item.Volume;
                             walletVolumes[1] += item.OppositeVolume.HasValue ? (double)item.OppositeVolume.Value : 0;
 
-                            UpdateAssetCache(
+                            await UpdateVolumesCacheAsync(
                                 assetGroup.Key,
-                                item.UserId,
+                                oppositeAssetGroup.Key,
                                 item.WalletId,
                                 item.DateTime,
-                                (double)item.Volume);
+                                (double)item.Volume,
+                                item.OppositeVolume.HasValue ? (double)item.OppositeVolume.Value : 0);
                         }
 
                         await _tradeVolumesRepository.NotThreadSafeTradeVolumesUpdateAsync(
@@ -149,14 +165,6 @@ namespace Lykke.Service.TradeVolumes.Services
                                         return (walletsMap[w], w, walletVolume[0], walletVolume[1]);
                                     })
                                 .ToList());
-
-                        await UpdatePairsCacheAsync(
-                            assetGroup.Key,
-                            oppositeAssetGroup.Key,
-                            groupTime,
-                            usersHash,
-                            walletsHash,
-                            volumesDict);
                     }
                 }
             }
@@ -326,56 +334,30 @@ namespace Lykke.Service.TradeVolumes.Services
             return result;
         }
 
-        private async Task UpdatePairsCacheAsync(
+        private async Task UpdateVolumesCacheAsync(
             string assetId,
             string oppositeAssetId,
+            string clientId,
             DateTime time,
-            HashSet<string> usersHash,
-            HashSet<string> walletsHash,
-            Dictionary<string, double[]> volumesDict)
+            double baseVolume,
+            double quotingVolume)
         {
+            _cachesManager.UpdateAssetTradeVolume(
+                clientId,
+                assetId,
+                time,
+                baseVolume);
+
             var assetPairId = await _assetsDictionary.GetAssetPairIdAsync(assetId, oppositeAssetId);
             (string baseAssetId, string quotingAssetId) = await _assetsDictionary.GetAssetIdsAsync(assetPairId);
             if (assetId != baseAssetId && oppositeAssetId != quotingAssetId)
                 return;
 
-            foreach (var userId in usersHash)
-            {
-                var userVolume = volumesDict[_tradeVolumesRepository.GetUserVolumeKey(userId)];
-                _cachesManager.UpdateAssetPairTradeVolume(
-                    userId,
+            _cachesManager.UpdateAssetPairTradeVolume(
+                    clientId,
                     assetPairId,
                     time,
-                    (userVolume[0], userVolume[1]));
-            }
-            foreach (var walletId in walletsHash)
-            {
-                var walletVolume = volumesDict[_tradeVolumesRepository.GetWalletVolumeKey(walletId)];
-                _cachesManager.UpdateAssetPairTradeVolume(
-                    walletId,
-                    assetPairId,
-                    time,
-                    (walletVolume[0], walletVolume[1]));
-            }
-        }
-
-        private void UpdateAssetCache(
-            string assetId,
-            string userId,
-            string walletId,
-            DateTime time,
-            double volume)
-        {
-            _cachesManager.UpdateAssetTradeVolume(
-                userId,
-                assetId,
-                time,
-                volume);
-            _cachesManager.UpdateAssetTradeVolume(
-                walletId,
-                assetId,
-                time,
-                volume);
+                    (baseVolume, quotingVolume));
         }
     }
 }

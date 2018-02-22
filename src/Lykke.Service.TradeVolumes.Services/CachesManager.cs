@@ -125,12 +125,11 @@ namespace Lykke.Service.TradeVolumes.Services
                     if (!periodsDict.TryGetValue(periodEnd, out var volume))
                         continue;
 
-                    periodsDict.TryUpdate(periodEnd, volume, volume + tradeVolume);
-
-                    _log.WriteInfo(
-                        nameof(CachesManager),
-                        nameof(UpdateAssetTradeVolume),
-                        $"Updated {assetId} cache for client {clientId} on {time} with {tradeVolume}");
+                    if (periodsDict.TryUpdate(periodEnd, volume, volume + tradeVolume))
+                        _log.WriteInfo(
+                            nameof(CachesManager),
+                            nameof(UpdateAssetTradeVolume),
+                            $"Updated {assetId} cache for client {clientId} on {time} with {tradeVolume}");
                 }
             }
         }
@@ -227,12 +226,11 @@ namespace Lykke.Service.TradeVolumes.Services
                     if (!periodsDict.TryGetValue(periodEnd, out var volumes))
                         continue;
 
-                    periodsDict.TryUpdate(periodEnd, volumes, tradeVolumes);
-
-                    _log.WriteInfo(
-                        nameof(CachesManager),
-                        nameof(UpdateAssetPairTradeVolume),
-                        $"Updated {assetPairId} cache for client {clientId} on {time} with ({tradeVolumes.Item1}, {tradeVolumes.Item2}) within {periodStart} to {periodEnd}");
+                    if (periodsDict.TryUpdate(periodEnd, volumes, (volumes.Item1 + tradeVolumes.Item1, volumes.Item2 + tradeVolumes.Item2)))
+                        _log.WriteInfo(
+                            nameof(CachesManager),
+                            nameof(UpdateAssetPairTradeVolume),
+                            $"Updated {assetPairId} cache for client {clientId} on {time} with ({tradeVolumes.Item1}, {tradeVolumes.Item2}) within {periodStart} to {periodEnd}");
                 }
             }
         }
@@ -273,7 +271,7 @@ namespace Lykke.Service.TradeVolumes.Services
                         keysToRemove.Add(periodStart);
                         _log.WriteInfo(
                             nameof(CachesManager),
-                            nameof(UpdateAssetPairTradeVolume),
+                            nameof(CleanUpCache),
                             $"Cleaned up cache key {periodStart} for cache start {cacheStart}");
                     }
                     foreach (var key in keysToRemove)
