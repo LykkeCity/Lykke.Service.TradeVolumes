@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Linq;
 using System.Collections.Generic;
 using System.Collections.Concurrent;
 using System.Threading.Tasks;
@@ -233,7 +232,7 @@ namespace Lykke.Service.TradeVolumes.Services
                     _log.WriteInfo(
                         nameof(CachesManager),
                         nameof(UpdateAssetPairTradeVolume),
-                        $"Updated {assetPairId} cache for client {clientId} on {time} with ({tradeVolumes.Item1}, {tradeVolumes.Item2})");
+                        $"Updated {assetPairId} cache for client {clientId} on {time} with ({tradeVolumes.Item1}, {tradeVolumes.Item2}) within {periodStart} to {periodEnd}");
                 }
             }
         }
@@ -275,7 +274,7 @@ namespace Lykke.Service.TradeVolumes.Services
                         _log.WriteInfo(
                             nameof(CachesManager),
                             nameof(UpdateAssetPairTradeVolume),
-                            $"Cleanud up cache key {periodStart} for cache start {cacheStart}");
+                            $"Cleaned up cache key {periodStart} for cache start {cacheStart}");
                     }
                     foreach (var key in keysToRemove)
                     {
