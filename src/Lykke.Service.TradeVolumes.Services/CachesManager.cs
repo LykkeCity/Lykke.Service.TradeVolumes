@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using System.Collections.Generic;
 using System.Collections.Concurrent;
 using System.Threading.Tasks;
@@ -14,10 +15,10 @@ namespace Lykke.Service.TradeVolumes.Services
         private const int _cacheLifeHoursCount = 24 * Constants.MaxPeriodInDays;
 
         private readonly ILog _log;
-        private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, ConcurrentDictionary<int, double>>> _assetVolumesCache
-            = new ConcurrentDictionary<string, ConcurrentDictionary<string, ConcurrentDictionary<int, double>>>();
-        private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, ConcurrentDictionary<int, (double, double)>>> _assetPairVolumesCache
-            = new ConcurrentDictionary<string, ConcurrentDictionary<string, ConcurrentDictionary<int, (double, double)>>>();
+        private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, ConcurrentDictionary<DateTime, List<(DateTime, double)>>>> _assetVolumesCache
+            = new ConcurrentDictionary<string, ConcurrentDictionary<string, ConcurrentDictionary<DateTime, List<(DateTime, double)>>>>();
+        private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, ConcurrentDictionary<DateTime, List<(DateTime, (double, double))>>>> _assetPairVolumesCache
+            = new ConcurrentDictionary<string, ConcurrentDictionary<string, ConcurrentDictionary<DateTime, List<(DateTime, (double, double))>>>>();
 
         public CachesManager(ILog log)
             : base((int)TimeSpan.FromMinutes(15).TotalMilliseconds, log)
@@ -40,12 +41,13 @@ namespace Lykke.Service.TradeVolumes.Services
             DateTime to,
             out double result)
         {
-            int periodKey = GetPeriodKey(from, to);
             if (IsCahedPeriod(from)
                 && _assetVolumesCache.TryGetValue(clientId, out var clientDict)
                 && clientDict.TryGetValue(assetId, out var assetDict)
-                && assetDict.TryGetValue(periodKey, out result))
+                && assetDict.TryGetValue(from, out var periods)
+                && periods.Any(p => p.Item1 == to))
             {
+                result = periods.First(p => p.Item1 == to).Item2;
                 return true;
             }
             result = 0;
@@ -64,18 +66,17 @@ namespace Lykke.Service.TradeVolumes.Services
 
             if (!_assetVolumesCache.TryGetValue(clientId, out var clientDict))
             {
-                clientDict = new ConcurrentDictionary<string, ConcurrentDictionary<int, double>>();
+                clientDict = new ConcurrentDictionary<string, ConcurrentDictionary<DateTime, List<(DateTime, double)>>>();
                 _assetVolumesCache.TryAdd(clientId, clientDict);
             }
             clientDict = _assetVolumesCache[clientId];
             if (!clientDict.TryGetValue(assetId, out var assetDict))
             {
-                assetDict = new ConcurrentDictionary<int, double>();
+                assetDict = new ConcurrentDictionary<DateTime, List<(DateTime, double)>>();
                 clientDict.TryAdd(assetId, assetDict);
             }
             assetDict = clientDict[assetId];
-            int periodKey = GetPeriodKey(from, to);
-            assetDict.TryAdd(periodKey, tradeVolume);
+            assetDict.TryAdd(from, new List<(DateTime, double)> { (to, tradeVolume) });
 
             if (_assetVolumesCache.Count > 1000)
                 _log.WriteWarning(nameof(CachesManager), nameof(AddAssetTradeVolume), $"Already {_assetVolumesCache.Count} items in asset cache");
@@ -94,18 +95,25 @@ namespace Lykke.Service.TradeVolumes.Services
             if (!clientDict.TryGetValue(assetId, out var assetDict))
                 return;
 
-            assetDict = clientDict[assetId];
             foreach (var pair in assetDict)
             {
-                if (!IsInPeriod(time, pair.Key))
+                if (pair.Key > time)
                     continue;
 
-                assetDict[pair.Key] += tradeVolume;
+                var periods = pair.Value;
+                for(int i = 0; i < periods.Count; ++i)
+                {
+                    var period = periods[i];
+                    if (period.Item1 < time)
+                        continue;
 
-                _log.WriteInfo(
-                    nameof(CachesManager),
-                    nameof(UpdateAssetTradeVolume),
-                    $"Updated {assetId} cache for client {clientId} on {time} with {tradeVolume}");
+                    periods[i] = (period.Item1, period.Item2 + tradeVolume);
+
+                    _log.WriteInfo(
+                        nameof(CachesManager),
+                        nameof(UpdateAssetTradeVolume),
+                        $"Updated {assetId} cache for client {clientId} on {time} with {tradeVolume}");
+                }
             }
         }
 
@@ -116,12 +124,13 @@ namespace Lykke.Service.TradeVolumes.Services
             DateTime to,
             out (double,double) result)
         {
-            int periodKey = GetPeriodKey(from, to);
             if (IsCahedPeriod(from)
                 && _assetPairVolumesCache.TryGetValue(clientId, out var clientDict)
                 && clientDict.TryGetValue(assetPairId, out var assetPairDict)
-                && assetPairDict.TryGetValue(periodKey, out result))
+                && assetPairDict.TryGetValue(from, out var periods)
+                && periods.Any(p => p.Item1 == to))
             {
+                result = periods.First(p => p.Item1 == to).Item2;
                 return true;
             }
             result = (0,0);
@@ -140,18 +149,17 @@ namespace Lykke.Service.TradeVolumes.Services
 
             if (!_assetPairVolumesCache.TryGetValue(clientId, out var clientDict))
             {
-                clientDict = new ConcurrentDictionary<string, ConcurrentDictionary<int, (double, double)>>();
+                clientDict = new ConcurrentDictionary<string, ConcurrentDictionary<DateTime, List<(DateTime, (double, double))>>>();
                 _assetPairVolumesCache.TryAdd(clientId, clientDict);
             }
             clientDict = _assetPairVolumesCache[clientId];
             if (!clientDict.TryGetValue(assetPairId, out var assetPairDict))
             {
-                assetPairDict = new ConcurrentDictionary<int, (double, double)>();
+                assetPairDict = new ConcurrentDictionary<DateTime, List<(DateTime, (double, double))>>();
                 clientDict.TryAdd(assetPairId, assetPairDict);
             }
             assetPairDict = clientDict[assetPairId];
-            int periodKey = GetPeriodKey(from, to);
-            assetPairDict.TryAdd(periodKey, tradeVolumes);
+            assetPairDict.TryAdd(from, new List<(DateTime, (double, double))> { (to, tradeVolumes) });
 
             if (_assetPairVolumesCache.Count > 1000)
                 _log.WriteWarning(nameof(CachesManager), nameof(AddAssetPairTradeVolume), $"Already {_assetPairVolumesCache.Count} items in asset pair cache");
@@ -173,21 +181,23 @@ namespace Lykke.Service.TradeVolumes.Services
             assetPairDict = clientDict[assetPairId];
             foreach (var pair in assetPairDict)
             {
-                if (!IsInPeriod(time, pair.Key))
+                if (pair.Key > time)
+                    continue;
+
+                var periods = pair.Value;
+                for (int i = 0; i < periods.Count; ++i)
                 {
+                    var period = periods[i];
+                    if (period.Item1 < time)
+                        continue;
+
+                    periods[i] = (period.Item1, tradeVolumes);
+
                     _log.WriteInfo(
                         nameof(CachesManager),
                         nameof(UpdateAssetPairTradeVolume),
-                        $"Skipped {assetPairId} cache (key - {pair.Key}) for client {clientId} on {time} with ({tradeVolumes.Item1}, {tradeVolumes.Item2})");
-                    continue;
+                        $"Updated {assetPairId} cache (key - {pair.Key}) for client {clientId} on {time} with ({tradeVolumes.Item1}, {tradeVolumes.Item2})");
                 }
-
-                assetPairDict[pair.Key] = tradeVolumes;
-
-                _log.WriteInfo(
-                    nameof(CachesManager),
-                    nameof(UpdateAssetPairTradeVolume),
-                    $"Updated {assetPairId} cache (key - {pair.Key}) for client {clientId} on {time} with ({tradeVolumes.Item1}, {tradeVolumes.Item2})");
             }
         }
 
@@ -198,65 +208,51 @@ namespace Lykke.Service.TradeVolumes.Services
             return periodHoursLength <= _cacheLifeHoursCount;
         }
 
-        private int GetPeriodKey(DateTime from, DateTime to)
-        {
-            var hoursLength = (int)to.Subtract(from).TotalHours;
-            int key = CalculateKeyStart(from) + hoursLength;
-            return key;
-        }
-
-        private int CalculateKeyStart(DateTime dateTime)
-        {
-            return ((((dateTime.Year % 100) * 13 // max number of months + 1
-                + dateTime.Month) * 32 // max number of days + 1
-                + dateTime.Day) * 25 // max number of hours + 1
-                + dateTime.Hour) * (_cacheLifeHoursCount + 1);
-        }
-
-        private bool IsInPeriod(DateTime time, int periodKey)
-        {
-            int keyStart = CalculateKeyStart(time);
-            int periodStart = periodKey - (periodKey % (_cacheLifeHoursCount + 1));
-            return periodStart <= keyStart && keyStart < periodKey;
-        }
-
-        private void CleanUpCache<T>(ConcurrentDictionary<string, ConcurrentDictionary<string, ConcurrentDictionary<int, T>>> cache)
+        private void CleanUpCache<T>(ConcurrentDictionary<string, ConcurrentDictionary<string, ConcurrentDictionary<DateTime, List<(DateTime, T)>>>> cache)
         {
             DateTime now = DateTime.UtcNow.RoundToHour();
             DateTime cacheStart = now.AddDays(-1);
-            int startKey = CalculateKeyStart(cacheStart);
 
             var clientsToRemove = new List<string>();
-            foreach (var clientPair in cache)
+            var clients = new List<string>(cache.Keys);
+            foreach (var client in clients)
             {
+                if (!cache.TryGetValue(client, out var clientAssetsDict))
+                    continue;
+
                 var assetsToRemove = new List<string>();
-                foreach (var assetPair in clientPair.Value)
+                var clientAssets = new List<string>(clientAssetsDict.Keys);
+                foreach (var clientAsset in clientAssets)
                 {
-                    var keysToClear = new List<int>();
-                    foreach (var item in assetPair.Value)
+                    if (!clientAssetsDict.TryGetValue(client, out var periodsDict))
+                        continue;
+
+                    var keysToRemove = new List<DateTime>();
+                    var periodStarts = new List<DateTime>(periodsDict.Keys);
+                    foreach (var periodStart in periodStarts)
                     {
-                        if (item.Key < startKey)
-                        {
-                            keysToClear.Add(item.Key);
-                            _log.WriteInfo(
-                                nameof(CachesManager),
-                                nameof(UpdateAssetPairTradeVolume),
-                                $"Cleanud up key {item.Key} for start key {startKey}");
-                        }
+                        if (periodStart >= cacheStart)
+                            continue;
+
+                        keysToRemove.Add(periodStart);
+                        _log.WriteInfo(
+                            nameof(CachesManager),
+                            nameof(UpdateAssetPairTradeVolume),
+                            $"Cleanud up cache key {periodStart} for cache start {cacheStart}");
                     }
-                    foreach (var key in keysToClear)
+                    foreach (var key in keysToRemove)
                     {
-                        assetPair.Value.Remove(key, out var _);
+                        periodsDict.TryRemove(key, out var _);
                     }
-                    if (assetPair.Value.Count == 0)
-                        assetsToRemove.Add(assetPair.Key);
+                    if (periodsDict.Count == 0)
+                        assetsToRemove.Add(clientAsset);
                 }
                 foreach (var asset in assetsToRemove)
                 {
-                    clientPair.Value.Remove(asset, out var _);
+                    clientAssetsDict.TryRemove(asset, out var _);
                 }
-                if (clientPair.Value.Count == 0)
-                    clientsToRemove.Add(clientPair.Key);
+                if (clientAssetsDict.Count == 0)
+                    clientsToRemove.Add(client);
             }
             foreach (var client in clientsToRemove)
             {
