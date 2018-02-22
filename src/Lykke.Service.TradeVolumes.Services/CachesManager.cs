@@ -217,14 +217,14 @@ namespace Lykke.Service.TradeVolumes.Services
         {
             int keyStart = CalculateKeyStart(time);
             int periodStart = periodKey - (periodKey % (_cacheLifeHoursCount + 1));
-            return periodKey >= keyStart && keyStart <= periodKey;
+            return periodStart <= keyStart && keyStart < periodKey;
         }
 
         private void CleanUpCache<T>(ConcurrentDictionary<string, ConcurrentDictionary<string, ConcurrentDictionary<int, T>>> cache)
         {
             DateTime now = DateTime.UtcNow.RoundToHour();
             DateTime cacheStart = now.AddDays(-1);
-            int periodKey = GetPeriodKey(cacheStart, cacheStart);
+            int startKey = CalculateKeyStart(cacheStart);
 
             var clientsToRemove = new List<string>();
             foreach (var clientPair in cache)
@@ -235,8 +235,14 @@ namespace Lykke.Service.TradeVolumes.Services
                     var keysToClear = new List<int>();
                     foreach (var item in assetPair.Value)
                     {
-                        if (item.Key < periodKey)
+                        if (item.Key < startKey)
+                        {
                             keysToClear.Add(item.Key);
+                            _log.WriteInfo(
+                                nameof(CachesManager),
+                                nameof(UpdateAssetPairTradeVolume),
+                                $"Cleanud up key {item.Key} for start key {startKey}");
+                        }
                     }
                     foreach (var key in keysToClear)
                     {
