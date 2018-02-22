@@ -101,12 +101,12 @@ namespace Lykke.Service.TradeVolumes.Services
                     continue;
 
                 assetDict[pair.Key] += tradeVolume;
-            }
 
-            _log.WriteInfo(
-                nameof(CachesManager),
-                nameof(UpdateAssetTradeVolume),
-                $"Updated {assetId} cache for client {clientId} on {time} with {tradeVolume}");
+                _log.WriteInfo(
+                    nameof(CachesManager),
+                    nameof(UpdateAssetTradeVolume),
+                    $"Updated {assetId} cache for client {clientId} on {time} with {tradeVolume}");
+            }
         }
 
         public bool TryGetAssetPairTradeVolume(
@@ -174,15 +174,21 @@ namespace Lykke.Service.TradeVolumes.Services
             foreach (var pair in assetPairDict)
             {
                 if (!IsInPeriod(time, pair.Key))
+                {
+                    _log.WriteInfo(
+                        nameof(CachesManager),
+                        nameof(UpdateAssetPairTradeVolume),
+                        $"Skipped {assetPairId} cache (key - {pair.Key}) for client {clientId} on {time} with ({tradeVolumes.Item1}, {tradeVolumes.Item2})");
                     continue;
+                }
 
                 assetPairDict[pair.Key] = tradeVolumes;
-            }
 
-            _log.WriteInfo(
-                nameof(CachesManager),
-                nameof(UpdateAssetPairTradeVolume),
-                $"Updated {assetPairId} cache for client {clientId} on {time} with ({tradeVolumes.Item1}, {tradeVolumes.Item2})");
+                _log.WriteInfo(
+                    nameof(CachesManager),
+                    nameof(UpdateAssetPairTradeVolume),
+                    $"Updated {assetPairId} cache (key - {pair.Key}) for client {clientId} on {time} with ({tradeVolumes.Item1}, {tradeVolumes.Item2})");
+            }
         }
 
         private bool IsCahedPeriod(DateTime from)
