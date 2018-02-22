@@ -342,6 +342,11 @@ namespace Lykke.Service.TradeVolumes.Services
             double baseVolume,
             double quotingVolume)
         {
+            await _log.WriteInfoAsync(
+                nameof(TradeVolumesCalculator),
+                nameof(UpdateVolumesCacheAsync),
+                $"Trying to update cache with {assetId} and {oppositeAssetId} for {clientId} on {time} with ({baseVolume}, {quotingVolume})");
+
             _cachesManager.UpdateAssetTradeVolume(
                 clientId,
                 assetId,
@@ -355,7 +360,7 @@ namespace Lykke.Service.TradeVolumes.Services
                 await _log.WriteInfoAsync(
                     nameof(TradeVolumesCalculator),
                     nameof(UpdateVolumesCacheAsync),
-                    $"{assetId} and {oppositeAssetId} are not equal to {assetId} for {clientId} on {time} with ({baseVolume}, {quotingVolume})");
+                    $"{assetId} and {oppositeAssetId} are not equal to {assetPairId} for {clientId} on {time} with ({baseVolume}, {quotingVolume})");
                 return;
             }
 
