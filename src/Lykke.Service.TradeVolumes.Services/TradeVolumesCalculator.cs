@@ -222,10 +222,10 @@ namespace Lykke.Service.TradeVolumes.Services
             bool isUser)
         {
             var lastProcessedDate = _lastProcessedDate.HasValue
-                ? _lastProcessedDate.Value.RoundToHour().AddHours(1)
+                ? _lastProcessedDate.Value.RoundToHour()
                  : DateTime.UtcNow.RoundToHour();
             if (lastProcessedDate < to)
-                to = lastProcessedDate;
+                to = lastProcessedDate.AddHours(1);
 
             if (clientId != Constants.AllClients
                 && to.Subtract(from).TotalDays <= Constants.MaxPeriodInDays)
@@ -283,10 +283,10 @@ namespace Lykke.Service.TradeVolumes.Services
             bool isUser)
         {
             var lastProcessedDate = _lastProcessedDate.HasValue
-                ? _lastProcessedDate.Value.RoundToHour().AddHours(1)
+                ? _lastProcessedDate.Value.RoundToHour()
                  : DateTime.UtcNow.RoundToHour();
             if (lastProcessedDate < to)
-                to = lastProcessedDate;
+                to = lastProcessedDate.AddHours(1);
 
             if (clientId != Constants.AllClients
                 && to.Subtract(from).TotalDays <= Constants.MaxPeriodInDays)

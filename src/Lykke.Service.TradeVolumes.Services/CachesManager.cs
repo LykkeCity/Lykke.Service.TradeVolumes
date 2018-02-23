@@ -262,7 +262,7 @@ namespace Lykke.Service.TradeVolumes.Services
                         continue;
                     }
 
-                    if (periodsDict.TryUpdate(periodEnd, volumes, (volumes.Item1 + tradeVolumes.Item1, volumes.Item2 + tradeVolumes.Item2)))
+                    if (periodsDict.TryUpdate(periodEnd, (volumes.Item1 + tradeVolumes.Item1, volumes.Item2 + tradeVolumes.Item2), volumes))
                         _log.WriteInfo(
                             nameof(CachesManager),
                             nameof(UpdateAssetPairTradeVolume),
