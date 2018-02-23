@@ -372,6 +372,8 @@ namespace Lykke.Service.TradeVolumes.Controllers
                 toDate,
                 isUser);
 
+            result = Math.Round(result, 8);
+
             return result;
         }
 
@@ -400,7 +402,10 @@ namespace Lykke.Service.TradeVolumes.Controllers
                 toDate,
                 isUser);
 
-            return result;
+            var baseVolume = Math.Round(result.Item1, 8);
+            var quotingVolume = Math.Round(result.Item2, 8);
+
+            return (baseVolume, quotingVolume);
         }
     }
 }
