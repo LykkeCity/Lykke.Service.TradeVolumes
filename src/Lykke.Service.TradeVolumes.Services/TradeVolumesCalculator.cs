@@ -88,7 +88,7 @@ namespace Lykke.Service.TradeVolumes.Services
                                 await UpdateVolumesCacheAsync(
                                     assetGroup.Key,
                                     oppositeAssetGroup.Key,
-                                    item.WalletId,
+                                    item.UserId,
                                     item.DateTime,
                                     (double)item.Volume,
                                     item.OppositeVolume.HasValue ? (double)item.OppositeVolume.Value : 0);
@@ -355,7 +355,7 @@ namespace Lykke.Service.TradeVolumes.Services
 
             var assetPairId = await _assetsDictionary.GetAssetPairIdAsync(assetId, oppositeAssetId);
             (string baseAssetId, string quotingAssetId) = await _assetsDictionary.GetAssetIdsAsync(assetPairId);
-            if (assetId != baseAssetId && oppositeAssetId != quotingAssetId)
+            if (assetId != baseAssetId)
             {
                 await _log.WriteInfoAsync(
                     nameof(TradeVolumesCalculator),
