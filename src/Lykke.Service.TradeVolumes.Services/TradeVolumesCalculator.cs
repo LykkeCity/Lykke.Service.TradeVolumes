@@ -24,7 +24,7 @@ namespace Lykke.Service.TradeVolumes.Services
         private readonly TimeSpan _cacheTimeout;
 
         private DateTime? _lastProcessedDate;
-        private DateTime _lastWarningTime;
+        private DateTime _lastWarningTime = DateTime.MinValue;
 
         public TradeVolumesCalculator(
             IAssetsDictionary assetsDictionary,
@@ -188,10 +188,17 @@ namespace Lykke.Service.TradeVolumes.Services
                 _lastProcessedDate = dateTime;
 
             if (_tradesDict.Count > 1000)
-                await _log.WriteWarningAsync(
-                    nameof(TradeVolumesCalculator),
-                    nameof(AddTradeLogItemsAsync),
-                    $"Tradelog items cache has {_tradesDict.Count} items!");
+            {
+                var now = DateTime.UtcNow;
+                if (now.Subtract(_lastWarningTime).TotalMinutes >= 1)
+                {
+                    await _log.WriteWarningAsync(
+                        nameof(TradeVolumesCalculator),
+                        nameof(AddTradeLogItemsAsync),
+                        $"Tradelog items cache has {_tradesDict.Count} items!");
+                    _lastWarningTime = now;
+                }
+            }
         }
 
         public override Task Execute()
@@ -228,20 +235,14 @@ namespace Lykke.Service.TradeVolumes.Services
                 to = lastProcessedDate.AddHours(1);
 
             if (clientId != Constants.AllClients
-                && to.Subtract(from).TotalDays <= Constants.MaxPeriodInDays)
-            {
-                if (_cachesManager.TryGetAssetPairTradeVolume(
+                && to.Subtract(from).TotalDays <= Constants.MaxPeriodInDays
+                && _cachesManager.TryGetAssetPairTradeVolume(
                     clientId,
                     assetPairId,
                     from,
                     to,
                     out (double, double) cachedResult))
-                    return cachedResult;
-                await _log.WriteInfoAsync(
-                    nameof(ITradeVolumesCalculator),
-                    nameof(GetPeriodAssetPairVolumeAsync),
-                    $"Cache is empty on {assetPairId} volumes for client {clientId} in period {from} to {to}");
-            }
+                return cachedResult;
 
             (string baseAssetId, string quotingAssetId) = await _assetsDictionary.GetAssetIdsAsync(assetPairId);
             (double baseVolume, double quotingVolume) = await _tradeVolumesRepository.GetPeriodClientVolumeAsync(
@@ -251,26 +252,16 @@ namespace Lykke.Service.TradeVolumes.Services
                 from,
                 to,
                 isUser);
-            baseVolume = Math.Round(baseVolume, 8);
-            quotingVolume = Math.Round(quotingVolume, 8);
             var result = (baseVolume, quotingVolume);
 
             if (clientId != Constants.AllClients
                 && to.Subtract(from).TotalDays <= Constants.MaxPeriodInDays)
-            {
-                await _log.WriteInfoAsync(
-                    nameof(ITradeVolumesCalculator),
-                    nameof(GetPeriodAssetPairVolumeAsync),
-                    baseVolume == 0 && quotingVolume == 0
-                        ? $"Couldn't find {assetPairId} volumes for client {clientId} in period {from} to {to}"
-                        : $"Cached ({baseVolume}, {quotingVolume}) on {assetPairId} volumes for client {clientId} in period {from} to {to}");
                 _cachesManager.AddAssetPairTradeVolume(
                     clientId,
                     assetPairId,
                     from,
                     to,
                     result);
-            }
 
             return result;
         }
@@ -289,20 +280,14 @@ namespace Lykke.Service.TradeVolumes.Services
                 to = lastProcessedDate.AddHours(1);
 
             if (clientId != Constants.AllClients
-                && to.Subtract(from).TotalDays <= Constants.MaxPeriodInDays)
-            {
-                if (_cachesManager.TryGetAssetTradeVolume(
+                && to.Subtract(from).TotalDays <= Constants.MaxPeriodInDays
+                && _cachesManager.TryGetAssetTradeVolume(
                     clientId,
                     assetId,
                     from,
                     to,
                     out double cachedResult))
-                    return cachedResult;
-                await _log.WriteInfoAsync(
-                    nameof(ITradeVolumesCalculator),
-                    nameof(GetPeriodAssetVolumeAsync),
-                    $"Cache is empty on {assetId} volumes for client {clientId} in period {from} to {to}");
-            }
+                return cachedResult;
 
             (double result, _) = await _tradeVolumesRepository.GetPeriodClientVolumeAsync(
                 assetId,
@@ -312,24 +297,14 @@ namespace Lykke.Service.TradeVolumes.Services
                 to,
                 isUser);
 
-            result = Math.Round(result, 8);
-
             if (clientId != Constants.AllClients
                 && to.Subtract(from).TotalDays <= Constants.MaxPeriodInDays)
-            {
-                await _log.WriteInfoAsync(
-                    nameof(ITradeVolumesCalculator),
-                    nameof(GetPeriodAssetVolumeAsync),
-                    result == 0
-                        ? $"Couldn't find {assetId} volume for client {clientId} in period {from} to {to}"
-                        : $"Cached {result} on {assetId} volume for client {clientId} in period {from} to {to}");
                 _cachesManager.AddAssetTradeVolume(
                     clientId,
                     assetId,
                     from,
                     to,
                     result);
-            }
 
             return result;
         }
@@ -342,11 +317,6 @@ namespace Lykke.Service.TradeVolumes.Services
             double baseVolume,
             double quotingVolume)
         {
-            await _log.WriteInfoAsync(
-                nameof(TradeVolumesCalculator),
-                nameof(UpdateVolumesCacheAsync),
-                $"Trying to update cache with {assetId} and {oppositeAssetId} for {clientId} on {time} with ({baseVolume}, {quotingVolume})");
-
             _cachesManager.UpdateAssetTradeVolume(
                 clientId,
                 assetId,
@@ -356,13 +326,7 @@ namespace Lykke.Service.TradeVolumes.Services
             var assetPairId = await _assetsDictionary.GetAssetPairIdAsync(assetId, oppositeAssetId);
             (string baseAssetId, string quotingAssetId) = await _assetsDictionary.GetAssetIdsAsync(assetPairId);
             if (assetId != baseAssetId)
-            {
-                await _log.WriteInfoAsync(
-                    nameof(TradeVolumesCalculator),
-                    nameof(UpdateVolumesCacheAsync),
-                    $"{assetId} and {oppositeAssetId} are not equal to {assetPairId} for {clientId} on {time} with ({baseVolume}, {quotingVolume})");
                 return;
-            }
 
             _cachesManager.UpdateAssetPairTradeVolume(
                     clientId,

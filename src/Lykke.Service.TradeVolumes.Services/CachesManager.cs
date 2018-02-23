@@ -19,6 +19,8 @@ namespace Lykke.Service.TradeVolumes.Services
         private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, ConcurrentDictionary<DateTime, ConcurrentDictionary<DateTime, (double, double)>>>> _assetPairVolumesCache
             = new ConcurrentDictionary<string, ConcurrentDictionary<string, ConcurrentDictionary<DateTime, ConcurrentDictionary<DateTime, (double, double)>>>>();
 
+        private DateTime _lastWarningTime = DateTime.MinValue;
+
         public CachesManager(ILog log)
             : base((int)TimeSpan.FromMinutes(15).TotalMilliseconds, log)
         {
@@ -92,7 +94,14 @@ namespace Lykke.Service.TradeVolumes.Services
             }
 
             if (_assetVolumesCache.Count > 1000)
-                _log.WriteWarning(nameof(CachesManager), nameof(AddAssetTradeVolume), $"Already {_assetVolumesCache.Count} items in asset cache");
+            {
+                var now = DateTime.UtcNow;
+                if (now.Subtract(_lastWarningTime).TotalMinutes >= 1)
+                {
+                    _log.WriteWarning(nameof(CachesManager), nameof(AddAssetTradeVolume), $"Already {_assetVolumesCache.Count} items in asset cache");
+                    _lastWarningTime = now;
+                }
+            }
         }
 
         public void UpdateAssetTradeVolume(
@@ -125,11 +134,7 @@ namespace Lykke.Service.TradeVolumes.Services
                     if (!periodsDict.TryGetValue(periodEnd, out var volume))
                         continue;
 
-                    if (periodsDict.TryUpdate(periodEnd, volume, volume + tradeVolume))
-                        _log.WriteInfo(
-                            nameof(CachesManager),
-                            nameof(UpdateAssetTradeVolume),
-                            $"Updated {assetId} cache for client {clientId} on {time} with {tradeVolume}");
+                    periodsDict.TryUpdate(periodEnd, volume, volume + tradeVolume);
                 }
             }
         }
@@ -193,7 +198,14 @@ namespace Lykke.Service.TradeVolumes.Services
             }
 
             if (_assetPairVolumesCache.Count > 1000)
-                _log.WriteWarning(nameof(CachesManager), nameof(AddAssetPairTradeVolume), $"Already {_assetPairVolumesCache.Count} items in asset pair cache");
+            {
+                var now = DateTime.UtcNow;
+                if (now.Subtract(_lastWarningTime).TotalMinutes >= 1)
+                {
+                    _log.WriteWarning(nameof(CachesManager), nameof(AddAssetPairTradeVolume), $"Already {_assetPairVolumesCache.Count} items in asset pair cache");
+                    _lastWarningTime = now;
+                }
+            }
         }
 
         public void UpdateAssetPairTradeVolume(
@@ -203,75 +215,30 @@ namespace Lykke.Service.TradeVolumes.Services
             (double, double) tradeVolumes)
         {
             if (!_assetPairVolumesCache.TryGetValue(clientId, out var clientDict))
-            {
-                _log.WriteInfo(
-                    nameof(CachesManager),
-                    nameof(UpdateAssetPairTradeVolume),
-                    $"Client {clientId} is not found in {assetPairId} cache on {time} with ({tradeVolumes.Item1}, {tradeVolumes.Item2})");
                 return;
-            }
 
             if (!clientDict.TryGetValue(assetPairId, out var assetDict))
-            {
-                _log.WriteInfo(
-                    nameof(CachesManager),
-                    nameof(UpdateAssetPairTradeVolume),
-                    $"Asset pair {assetPairId} is not found in cache on {time} with ({tradeVolumes.Item1}, {tradeVolumes.Item2})");
                 return;
-            }
 
             var periodStarts = new List<DateTime>(assetDict.Keys);
             foreach (var periodStart in periodStarts)
             {
                 if (periodStart > time)
-                {
-                    _log.WriteInfo(
-                        nameof(CachesManager),
-                        nameof(UpdateAssetPairTradeVolume),
-                        $"Skipped {assetPairId} cache for client {clientId} on {time} with ({tradeVolumes.Item1}, {tradeVolumes.Item2}) because of start {periodStart}");
                     continue;
-                }
 
                 if (!assetDict.TryGetValue(periodStart, out var periodsDict))
-                {
-                    _log.WriteInfo(
-                        nameof(CachesManager),
-                        nameof(UpdateAssetPairTradeVolume),
-                        $"Skipped {assetPairId} cache for client {clientId} on {time} with ({tradeVolumes.Item1}, {tradeVolumes.Item2}) start {periodStart} is not found");
                     continue;
-                }
 
                 var periodEnds = new List<DateTime>(periodsDict.Keys);
                 foreach (var periodEnd in periodEnds)
                 {
                     if (periodEnd < time)
-                    {
-                        _log.WriteInfo(
-                            nameof(CachesManager),
-                            nameof(UpdateAssetPairTradeVolume),
-                            $"Skipped {assetPairId} cache for client {clientId} on {time} with ({tradeVolumes.Item1}, {tradeVolumes.Item2}) because of finish {periodEnd}");
                         continue;
-                    }
 
                     if (!periodsDict.TryGetValue(periodEnd, out var volumes))
-                    {
-                        _log.WriteInfo(
-                            nameof(CachesManager),
-                            nameof(UpdateAssetPairTradeVolume),
-                            $"Skipped {assetPairId} cache for client {clientId} on {time} with ({tradeVolumes.Item1}, {tradeVolumes.Item2}) finish {periodEnd} is not found");
                         continue;
-                    }
 
-                    if (periodsDict.TryUpdate(periodEnd, (volumes.Item1 + tradeVolumes.Item1, volumes.Item2 + tradeVolumes.Item2), volumes))
-                        _log.WriteInfo(
-                            nameof(CachesManager),
-                            nameof(UpdateAssetPairTradeVolume),
-                            $"Updated {assetPairId} cache for client {clientId} on {time} with ({tradeVolumes.Item1}, {tradeVolumes.Item2}) within {periodStart} to {periodEnd}");
-                    else
-                        _log.WriteInfo(
-                            nameof(CachesManager),
-                            nameof(UpdateAssetPairTradeVolume),
-                            $"Coudn't update {assetPairId} cache for client {clientId} on {time} with ({tradeVolumes.Item1}, {tradeVolumes.Item2}) within {periodStart} to {periodEnd}");
+                    periodsDict.TryUpdate(periodEnd, (volumes.Item1 + tradeVolumes.Item1, volumes.Item2 + tradeVolumes.Item2), volumes);
                 }
             }
         }
@@ -310,10 +277,6 @@ namespace Lykke.Service.TradeVolumes.Services
                             continue;
 
                         keysToRemove.Add(periodStart);
-                        _log.WriteInfo(
-                            nameof(CachesManager),
-                            nameof(CleanUpCache),
-                            $"Cleaned up cache key {periodStart} for cache start {cacheStart}");
                     }
                     foreach (var key in keysToRemove)
                     {
