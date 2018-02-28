@@ -204,18 +204,34 @@ namespace Lykke.Service.TradeVolumes.Services
         public override Task Execute()
         {
             var now = DateTime.UtcNow;
-            var keysToDelete = new List<string>();
-            foreach (var tradeInfo in _tradesDict)
+
+            var tradesToRemove = new List<string>();
+            var tradeIds = new List<string>(_tradesDict.Keys);
+            foreach (var tradeId in tradeIds)
             {
-                foreach (var tradeUserInfo in tradeInfo.Value)
+                if (!_tradesDict.TryGetValue(tradeId, out var tradeInfo))
+                    continue;
+
+                var usersToRemove = new List<string>();
+                var tradeUsers = new List<string>(tradeInfo.Keys);
+                foreach (var tradeUser in tradeUsers)
                 {
-                    if (tradeUserInfo.Value.Item2.Subtract(now) >= _cacheTimeout)
-                        keysToDelete.Add(tradeInfo.Key);
+                    if (!tradeInfo.TryGetValue(tradeUser, out var userTradesInfo))
+                        continue;
+
+                    if (now.Subtract(userTradesInfo.Item2) >= _cacheTimeout)
+                        tradeUsers.Add(tradeUser);
                 }
+                foreach (var user in usersToRemove)
+                {
+                    tradeInfo.TryRemove(user, out _);
+                }
+                if (tradeInfo.Count == 0)
+                    tradesToRemove.Add(tradeId);
             }
-            foreach (var key in keysToDelete)
+            foreach (var tradeId in tradesToRemove)
             {
-                _tradesDict.TryRemove(key, out _);
+                _tradesDict.TryRemove(tradeId, out _);
             }
 
             return Task.CompletedTask;
