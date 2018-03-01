@@ -44,6 +44,8 @@ namespace Lykke.Service.TradeVolumes.Settings
 
         public int WarningDelayInHours { get; set; }
 
+        public int TradesCacheWarningCount { get; set; }
+
         public int TradesCacheTimeoutInHours { get; set; }
     }
 }
