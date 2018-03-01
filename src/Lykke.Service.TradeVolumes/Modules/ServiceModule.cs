@@ -73,14 +73,21 @@ namespace Lykke.Service.TradeVolumes.Modules
             int warningHoursDelay = 1;
             if (_settings.TradeVolumesService.WarningDelayInHours > 0)
                 warningHoursDelay = _settings.TradeVolumesService.WarningDelayInHours;
-            int cacheHoursTimeout = 6;
+            int tradesCacheHoursTimeout = 6;
             if (_settings.TradeVolumesService.TradesCacheTimeoutInHours > 0)
-                cacheHoursTimeout = _settings.TradeVolumesService.TradesCacheTimeoutInHours;
+                tradesCacheHoursTimeout = _settings.TradeVolumesService.TradesCacheTimeoutInHours;
+            int tradesCacheWarningCount = 1000;
+            if (_settings.TradeVolumesService.TradesCacheWarningCount > 0)
+                tradesCacheWarningCount = _settings.TradeVolumesService.TradesCacheWarningCount;
             builder.RegisterType<TradeVolumesCalculator>()
-                .WithParameter("warningDelay", TimeSpan.FromHours(warningHoursDelay))
-                .WithParameter("cacheTimeout", TimeSpan.FromHours(cacheHoursTimeout))
                 .As<ITradeVolumesCalculator>()
-                .SingleInstance();
+                .As<IStartable>()
+                .As<IStopable>()
+                .AutoActivate()
+                .SingleInstance()
+                .WithParameter("warningDelay", TimeSpan.FromHours(warningHoursDelay))
+                .WithParameter("cacheWarningCount", TimeSpan.FromHours(tradesCacheWarningCount))
+                .WithParameter("cacheTimeout", TimeSpan.FromHours(tradesCacheHoursTimeout));
 
             builder.RegisterType<TradelogSubscriber>()
                 .As<IStartable>()

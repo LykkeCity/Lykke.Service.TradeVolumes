@@ -21,6 +21,7 @@ namespace Lykke.Service.TradeVolumes.Services
         private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, (List<string>, DateTime)>> _tradesDict =
             new ConcurrentDictionary<string, ConcurrentDictionary<string, (List<string>, DateTime)>>();
         private readonly TimeSpan _warningDelay;
+        private readonly int _cacheWarningCount;
         private readonly TimeSpan _cacheTimeout;
 
         private DateTime? _lastProcessedDate;
@@ -32,6 +33,7 @@ namespace Lykke.Service.TradeVolumes.Services
             ITradeVolumesRepository tradeVolumesRepository,
             TimeSpan warningDelay,
             TimeSpan cacheTimeout,
+            int cacheWarningCount,
             ILog log)
             : base((int)cacheTimeout.TotalMilliseconds, log)
         {
@@ -40,6 +42,7 @@ namespace Lykke.Service.TradeVolumes.Services
             _log = log;
             _cachesManager = cachesManager;
             _warningDelay = warningDelay;
+            _cacheWarningCount = cacheWarningCount;
             _cacheTimeout = cacheTimeout;
         }
 
@@ -78,73 +81,12 @@ namespace Lykke.Service.TradeVolumes.Services
 
                         foreach (var item in oppositeAssetGroup)
                         {
-                            var userVolumes = volumesDict[_tradeVolumesRepository.GetUserVolumeKey(item.UserId)];
-                            if (!_tradesDict.ContainsKey(item.TradeId)
-                                || !_tradesDict[item.TradeId].ContainsKey(item.UserId)
-                                || !_tradesDict[item.TradeId][item.UserId].Item1.Contains(item.Asset))
-                            {
-                                userVolumes[0] += (double)item.Volume;
-                                userVolumes[1] += item.OppositeVolume.HasValue ? (double)item.OppositeVolume.Value : 0;
-                                await UpdateVolumesCacheAsync(
-                                    assetGroup.Key,
-                                    oppositeAssetGroup.Key,
-                                    item.UserId,
-                                    item.DateTime,
-                                    (double)item.Volume,
-                                    item.OppositeVolume.HasValue ? (double)item.OppositeVolume.Value : 0);
-                                if (_tradesDict.ContainsKey(item.TradeId))
-                                {
-                                    var usersDataDict = _tradesDict[item.TradeId];
-                                    if (!usersDataDict.ContainsKey(item.UserId))
-                                        usersDataDict.TryAdd(item.UserId, (new List<string>(2) { item.Asset }, DateTime.UtcNow));
-                                    else
-                                        usersDataDict[item.UserId].Item1.Add(item.Asset);
-                                }
-                                else
-                                {
-                                    var usersDataDict = new ConcurrentDictionary<string, (List<string>, DateTime)>();
-                                    usersDataDict.TryAdd(item.UserId, (new List<string>(2) { item.Asset }, DateTime.UtcNow));
-                                    _tradesDict.TryAdd(item.TradeId, usersDataDict);
-                                }
-                            }
-                            else
-                            {
-                                userVolumes[0] -= (double)item.Volume;
-                                userVolumes[1] -= item.OppositeVolume.HasValue ? (double)item.OppositeVolume.Value : 0;
-                                await UpdateVolumesCacheAsync(
-                                    assetGroup.Key,
-                                    oppositeAssetGroup.Key,
-                                    item.UserId,
-                                    item.DateTime,
-                                    (double)-item.Volume,
-                                    item.OppositeVolume.HasValue ? (double)-item.OppositeVolume.Value : 0);
-
-                                var tradeUsersData = _tradesDict[item.TradeId];
-                                var tradeAssets = tradeUsersData[item.UserId].Item1;
-                                if (tradeAssets.Count == 1)
-                                {
-                                    if (tradeUsersData.Count == 1)
-                                        _tradesDict.TryRemove(item.TradeId, out _);
-                                    else
-                                        tradeUsersData.TryRemove(item.UserId, out _);
-                                }
-                                else
-                                {
-                                    tradeAssets.Remove(item.Asset);
-                                }
-                            }
-
-                            var walletVolumes = volumesDict[_tradeVolumesRepository.GetWalletVolumeKey(item.WalletId)];
-                            walletVolumes[0] += (double)item.Volume;
-                            walletVolumes[1] += item.OppositeVolume.HasValue ? (double)item.OppositeVolume.Value : 0;
-
-                            await UpdateVolumesCacheAsync(
+                            await ProcessItemAsync(
+                                item,
                                 assetGroup.Key,
                                 oppositeAssetGroup.Key,
-                                item.WalletId,
-                                item.DateTime,
-                                (double)item.Volume,
-                                item.OppositeVolume.HasValue ? (double)item.OppositeVolume.Value : 0);
+                                volumesDict,
+                                items);
                         }
 
                         await _tradeVolumesRepository.NotThreadSafeTradeVolumesUpdateAsync(
@@ -187,7 +129,7 @@ namespace Lykke.Service.TradeVolumes.Services
             if (!_lastProcessedDate.HasValue || dateTime > _lastProcessedDate.Value)
                 _lastProcessedDate = dateTime;
 
-            if (_tradesDict.Count > 1000)
+            if (_tradesDict.Count > _cacheWarningCount)
             {
                 var now = DateTime.UtcNow;
                 if (now.Subtract(_lastWarningTime).TotalMinutes >= 1)
@@ -349,6 +291,113 @@ namespace Lykke.Service.TradeVolumes.Services
                     assetPairId,
                     time,
                     (baseVolume, quotingVolume));
+        }
+
+        private async Task ProcessItemAsync(
+            TradeLogItem item,
+            string assetId,
+            string oppositeAssetId,
+            Dictionary<string, double[]> volumesDict,
+            List<TradeLogItem> items)
+        {
+            var userVolumes = volumesDict[_tradeVolumesRepository.GetUserVolumeKey(item.UserId)];
+            bool doNotUseTradesCache = items.Any(i =>
+                i != item && i.TradeId == item.TradeId && i.Asset == item.Asset && i.UserId != item.UserId);
+
+            if (doNotUseTradesCache)
+            {
+                userVolumes[0] += (double)item.Volume;
+                userVolumes[1] += item.OppositeVolume.HasValue ? (double)item.OppositeVolume.Value : 0;
+                await UpdateVolumesCacheAsync(
+                    assetId,
+                    oppositeAssetId,
+                    item.UserId,
+                    item.DateTime,
+                    (double)item.Volume,
+                    item.OppositeVolume.HasValue ? (double)item.OppositeVolume.Value : 0);
+            }
+            else
+            {
+                await UpdateTradesCacheAsync(
+                    item,
+                    assetId,
+                    oppositeAssetId,
+                    userVolumes);
+            }
+
+            var walletVolumes = volumesDict[_tradeVolumesRepository.GetWalletVolumeKey(item.WalletId)];
+            walletVolumes[0] += (double)item.Volume;
+            walletVolumes[1] += item.OppositeVolume.HasValue ? (double)item.OppositeVolume.Value : 0;
+
+            await UpdateVolumesCacheAsync(
+                assetId,
+                oppositeAssetId,
+                item.WalletId,
+                item.DateTime,
+                (double)item.Volume,
+                item.OppositeVolume.HasValue ? (double)item.OppositeVolume.Value : 0);
+        }
+
+        private async Task UpdateTradesCacheAsync(
+            TradeLogItem item,
+            string assetId,
+            string oppositeAssetId,
+            double[] userVolumes)
+        {
+            if (!_tradesDict.ContainsKey(item.TradeId)
+                || !_tradesDict[item.TradeId].ContainsKey(item.UserId)
+                || !_tradesDict[item.TradeId][item.UserId].Item1.Contains(item.Asset))
+            {
+                userVolumes[0] += (double)item.Volume;
+                userVolumes[1] += item.OppositeVolume.HasValue ? (double)item.OppositeVolume.Value : 0;
+                await UpdateVolumesCacheAsync(
+                    assetId,
+                    oppositeAssetId,
+                    item.UserId,
+                    item.DateTime,
+                    (double)item.Volume,
+                    item.OppositeVolume.HasValue ? (double)item.OppositeVolume.Value : 0);
+                if (_tradesDict.ContainsKey(item.TradeId))
+                {
+                    var usersDataDict = _tradesDict[item.TradeId];
+                    if (!usersDataDict.ContainsKey(item.UserId))
+                        usersDataDict.TryAdd(item.UserId, (new List<string>(2) { item.Asset }, DateTime.UtcNow));
+                    else
+                        usersDataDict[item.UserId].Item1.Add(item.Asset);
+                }
+                else
+                {
+                    var usersDataDict = new ConcurrentDictionary<string, (List<string>, DateTime)>();
+                    usersDataDict.TryAdd(item.UserId, (new List<string>(2) { item.Asset }, DateTime.UtcNow));
+                    _tradesDict.TryAdd(item.TradeId, usersDataDict);
+                }
+            }
+            else
+            {
+                userVolumes[0] -= (double)item.Volume;
+                userVolumes[1] -= item.OppositeVolume.HasValue ? (double)item.OppositeVolume.Value : 0;
+                await UpdateVolumesCacheAsync(
+                    assetId,
+                    oppositeAssetId,
+                    item.UserId,
+                    item.DateTime,
+                    (double)-item.Volume,
+                    item.OppositeVolume.HasValue ? (double)-item.OppositeVolume.Value : 0);
+
+                var tradeUsersData = _tradesDict[item.TradeId];
+                var tradeAssets = tradeUsersData[item.UserId].Item1;
+                if (tradeAssets.Count == 1)
+                {
+                    if (tradeUsersData.Count == 1)
+                        _tradesDict.TryRemove(item.TradeId, out _);
+                    else
+                        tradeUsersData.TryRemove(item.UserId, out _);
+                }
+                else
+                {
+                    tradeAssets.Remove(item.Asset);
+                }
+            }
         }
     }
 }
