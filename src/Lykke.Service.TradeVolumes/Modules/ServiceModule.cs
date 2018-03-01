@@ -86,7 +86,7 @@ namespace Lykke.Service.TradeVolumes.Modules
                 .AutoActivate()
                 .SingleInstance()
                 .WithParameter("warningDelay", TimeSpan.FromHours(warningHoursDelay))
-                .WithParameter("cacheWarningCount", TimeSpan.FromHours(tradesCacheWarningCount))
+                .WithParameter("cacheWarningCount", tradesCacheWarningCount)
                 .WithParameter("cacheTimeout", TimeSpan.FromHours(tradesCacheHoursTimeout));
 
             builder.RegisterType<TradelogSubscriber>()
