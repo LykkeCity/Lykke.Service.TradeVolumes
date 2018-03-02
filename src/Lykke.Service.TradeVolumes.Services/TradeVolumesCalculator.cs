@@ -162,7 +162,7 @@ namespace Lykke.Service.TradeVolumes.Services
                         continue;
 
                     if (now.Subtract(userTradesInfo.Item2) >= _cacheTimeout)
-                        tradeUsers.Add(tradeUser);
+                        usersToRemove.Add(tradeUser);
                 }
                 foreach (var user in usersToRemove)
                 {
