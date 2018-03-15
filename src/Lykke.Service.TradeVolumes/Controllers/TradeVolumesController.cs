@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.SwaggerGen;
 using Common;
 using Common.Log;
+using Lykke.Common.Api.Contract.Responses;
 using Lykke.Service.TradeVolumes.Core;
 using Lykke.Service.TradeVolumes.Core.Services;
 using Lykke.Service.TradeVolumes.Models;

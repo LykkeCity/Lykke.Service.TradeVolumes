@@ -128,19 +128,6 @@ namespace Lykke.Service.TradeVolumes.Services
 
             if (!_lastProcessedDate.HasValue || dateTime > _lastProcessedDate.Value)
                 _lastProcessedDate = dateTime;
-
-            if (_tradesDict.Count > _cacheWarningCount)
-            {
-                var now = DateTime.UtcNow;
-                if (now.Subtract(_lastWarningTime).TotalMinutes >= 1)
-                {
-                    await _log.WriteWarningAsync(
-                        nameof(TradeVolumesCalculator),
-                        nameof(AddTradeLogItemsAsync),
-                        $"Tradelog items cache has {_tradesDict.Count} items!");
-                    _lastWarningTime = now;
-                }
-            }
         }
 
         public override Task Execute()
@@ -370,6 +357,19 @@ namespace Lykke.Service.TradeVolumes.Services
                     var usersDataDict = new ConcurrentDictionary<string, (List<string>, DateTime)>();
                     usersDataDict.TryAdd(item.UserId, (new List<string>(2) { item.Asset }, DateTime.UtcNow));
                     _tradesDict.TryAdd(item.TradeId, usersDataDict);
+
+                    if (_tradesDict.Count > _cacheWarningCount)
+                    {
+                        var now = DateTime.UtcNow;
+                        if (now.Subtract(_lastWarningTime).TotalMinutes >= 1)
+                        {
+                            await _log.WriteWarningAsync(
+                                nameof(TradeVolumesCalculator),
+                                nameof(AddTradeLogItemsAsync),
+                                $"Tradelog items cache has {_tradesDict.Count} items!");
+                            _lastWarningTime = now;
+                        }
+                    }
                 }
             }
             else

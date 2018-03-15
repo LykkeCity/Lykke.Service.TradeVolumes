@@ -2,8 +2,8 @@
 using System.Net;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.SwaggerGen;
+using Lykke.Common.Api.Contract.Responses;
 using Lykke.Service.TradeVolumes.Core.Services;
-using Lykke.Service.TradeVolumes.Models;
 
 namespace Lykke.Service.TradeVolumes.Controllers
 {
