@@ -263,7 +263,8 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
                 _connectionStringManager,
                 tableName,
                 _log,
-                _timeout);
+                _timeout)
+                .UseExplicitAppInsightsSubmit();
             (double tradeVolume, _) = await GetTableTradeVolumeAsync(
                 from,
                 to,
@@ -311,7 +312,8 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
                 _connectionStringManager,
                 tableName,
                 _log,
-                _timeout);
+                _timeout)
+                .UseExplicitAppInsightsSubmit();
         }
     }
 }
