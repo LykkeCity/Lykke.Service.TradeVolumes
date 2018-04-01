@@ -2,6 +2,7 @@
 using Autofac;
 using Common;
 using Common.Log;
+using Lykke.Common;
 using Lykke.SettingsReader;
 using Lykke.Service.Assets.Client;
 using Lykke.Service.TradeVolumes.Core.Services;
@@ -50,6 +51,8 @@ namespace Lykke.Service.TradeVolumes.Modules
 
             builder.RegisterType<ShutdownManager>()
                 .As<IShutdownManager>();
+
+            builder.RegisterResourcesMonitoring(_log);
 
             builder.RegisterType<AssetsService>()
                 .WithParameter(TypedParameter.From(new Uri(_settings.AssetsServiceClient.ServiceUrl)))
