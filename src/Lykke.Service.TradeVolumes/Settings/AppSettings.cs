@@ -9,6 +9,8 @@ namespace Lykke.Service.TradeVolumes.Settings
         public SlackNotificationsSettings SlackNotifications { get; set; }
 
         public AssetsServiceClientSettings AssetsServiceClient { get; set; }
+
+        public MonitoringServiceClientSettings MonitoringServiceClient { get; set; }
     }
 
     public class AssetsServiceClientSettings
@@ -27,6 +29,12 @@ namespace Lykke.Service.TradeVolumes.Settings
         public string ConnectionString { get; set; }
 
         public string QueueName { get; set; }
+    }
+
+    public class MonitoringServiceClientSettings
+    {
+        [HttpCheck("api/isalive", false)]
+        public string MonitoringServiceUrl { get; set; }
     }
 
     public class TradeVolumesSettings

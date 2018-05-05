@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Linq;
 using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -28,6 +29,7 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
         private readonly CloudTableClient _tableClient;
         private readonly TimeSpan _timeout = TimeSpan.FromMinutes(5);
         private readonly SemaphoreSlim _lock = new SemaphoreSlim(1, 1);
+        private readonly ConcurrentDictionary<string, INoSQLTableStorage<TradeVolumeEntity>> _azureTables = new ConcurrentDictionary<string, INoSQLTableStorage<TradeVolumeEntity>>();
 
         public TradeVolumesRepository(
             IReloadingManager<string> connectionStringManager,
@@ -307,11 +309,15 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
             baseAssetId = await _assetsDictionary.GetShortNameAsync(baseAssetId);
             quotingAssetId = await _assetsDictionary.GetShortNameAsync(quotingAssetId);
             string tableName = string.Format(Constants.TableNameFormat, baseAssetId, quotingAssetId);
-            return AzureTableStorage<TradeVolumeEntity>.Create(
+            if (_azureTables.TryGetValue(tableName, out var storage))
+                return storage;
+            var result = AzureTableStorage<TradeVolumeEntity>.Create(
                 _connectionStringManager,
                 tableName,
                 _log,
                 _timeout);
+            _azureTables.TryAdd(tableName, result);
+            return result;
         }
     }
 }
