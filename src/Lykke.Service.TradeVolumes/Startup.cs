@@ -112,8 +112,9 @@ namespace Lykke.Service.TradeVolumes
                 await ApplicationContainer.Resolve<IStartupManager>().StartAsync();
 
                 await Log.WriteMonitorAsync("", $"Env: {Program.EnvInfo}", "Started");
-
+#if (!DEBUG)
                 await AutoRegistrationInMonitoring.RegisterAsync(Configuration, _monitoringServiceUrl, Log);
+#endif
             }
             catch (Exception ex)
             {
