@@ -13,6 +13,7 @@ using Lykke.SlackNotification.AzureQueue;
 using Lykke.Common.ApiLibrary.Middleware;
 using Lykke.Common.ApiLibrary.Swagger;
 using Lykke.Logs;
+using Lykke.MonitoringServiceApiCaller;
 using Lykke.Service.TradeVolumes.Core.Services;
 using Lykke.Service.TradeVolumes.Modules;
 using Lykke.Service.TradeVolumes.Settings;
@@ -22,6 +23,7 @@ namespace Lykke.Service.TradeVolumes
     public class Startup
     {
         private LogToConsole _console;
+        private string _monitoringServiceUrl;
 
         public IContainer ApplicationContainer { get; private set; }
         public IConfigurationRoot Configuration { get; }
@@ -53,6 +55,7 @@ namespace Lykke.Service.TradeVolumes
 
                 var builder = new ContainerBuilder();
                 var settingsManager = Configuration.LoadSettings<AppSettings>();
+                _monitoringServiceUrl = settingsManager.CurrentValue.MonitoringServiceClient.MonitoringServiceUrl;
                 Log = CreateLogWithSlack(services, settingsManager);
 
                 builder.RegisterModule(new ServiceModule(settingsManager, _console, Log));
@@ -109,6 +112,9 @@ namespace Lykke.Service.TradeVolumes
                 await ApplicationContainer.Resolve<IStartupManager>().StartAsync();
 
                 await Log.WriteMonitorAsync("", $"Env: {Program.EnvInfo}", "Started");
+#if (!DEBUG)
+                await AutoRegistrationInMonitoring.RegisterAsync(Configuration, _monitoringServiceUrl, Log);
+#endif
             }
             catch (Exception ex)
             {

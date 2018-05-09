@@ -22,15 +22,16 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Lykke.Common.ApiLibrary" Version="1.4.0" />
-    <PackageReference Include="Lykke.Logs" Version="3.6.2" />
+    <PackageReference Include="Lykke.Common.ApiLibrary" Version="1.7.0" />
+    <PackageReference Include="Lykke.Logs" Version="4.3.1" />
+    <PackageReference Include="Lykke.MonitoringServiceApiCaller" Version="1.2.2" />
     <PackageReference Include="Lykke.RabbitMqBroker" Version="7.0.0" />
-    <PackageReference Include="Lykke.SettingsReader" Version="2.2.0" />
+    <PackageReference Include="Lykke.SettingsReader" Version="2.3.1" />
     <PackageReference Include="Lykke.SlackNotification.AzureQueue" Version="2.0.2" />
     <PackageReference Include="Microsoft.ApplicationInsights.AspNetCore" Version="2.2.1" />
-    <PackageReference Include="Microsoft.AspNetCore" Version="2.0.2" />
-    <PackageReference Include="Microsoft.AspNetCore.Mvc" Version="2.0.3" />
-    <PackageReference Include="Microsoft.AspNetCore.StaticFiles" Version="2.0.2" />
+    <PackageReference Include="Microsoft.AspNetCore" Version="2.0.3" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc" Version="2.0.4" />
+    <PackageReference Include="Microsoft.AspNetCore.StaticFiles" Version="2.0.3" />
   </ItemGroup>
   <ItemGroup>
     <DotNetCliToolReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Tools" Version="1.0.1" />
