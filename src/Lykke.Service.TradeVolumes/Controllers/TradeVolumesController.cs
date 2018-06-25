@@ -92,7 +92,7 @@ namespace Lykke.Service.TradeVolumes.Controllers
                     ErrorResponse.Create("fromDate must be earlier than toDate"));
 
             var result = new List<AssetPairTradeVolumeResponse>();
-            
+
             foreach (string assetPairId in assetPairIds)
             {
                 try
@@ -113,10 +113,19 @@ namespace Lykke.Service.TradeVolumes.Controllers
                             QuotingVolume = quotingVolume,
                         });
                 }
-                catch (Exception ex) when (ex is UnknownPairException || ex is UnknownAssetException)
+                catch (UnknownPairException ex)
                 {
-                    _log.WriteWarning(nameof(GetPeriodAssetPairsTradeVolume), new { AssetPairId = assetPairId, FromDate = fromDate, ToDate = toDate},
-                        $"{assetPairId} not found", ex);
+                    _log.WriteWarning(
+                        nameof(GetPeriodAssetPairsTradeVolume),
+                        new { AssetPairId = assetPairId, FromDate = fromDate, ToDate = toDate},
+                        $"Asset pair {assetPairId} not found", ex);
+                }
+                catch (UnknownAssetException ex)
+                {
+                    _log.WriteWarning(
+                        nameof(GetPeriodAssetPairsTradeVolume),
+                        new { AssetPairId = assetPairId, FromDate = fromDate, ToDate = toDate },
+                        $"One of assets from {assetPairId} not found", ex);
                 }
             }
 
