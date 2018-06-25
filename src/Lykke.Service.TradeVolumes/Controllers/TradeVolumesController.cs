@@ -118,14 +118,16 @@ namespace Lykke.Service.TradeVolumes.Controllers
                     _log.WriteWarning(
                         nameof(GetPeriodAssetPairsTradeVolume),
                         new { AssetPairId = assetPairId, FromDate = fromDate, ToDate = toDate},
-                        $"Asset pair {assetPairId} not found", ex);
+                        ex.Message,
+                        ex);
                 }
                 catch (UnknownAssetException ex)
                 {
                     _log.WriteWarning(
                         nameof(GetPeriodAssetPairsTradeVolume),
                         new { AssetPairId = assetPairId, FromDate = fromDate, ToDate = toDate },
-                        $"One of assets from {assetPairId} not found", ex);
+                        ex.Message,
+                        ex);
                 }
             }
 
