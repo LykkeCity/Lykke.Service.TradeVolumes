@@ -1,13 +1,13 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
-using Autofac;
+﻿using Autofac;
 using Common;
 using Common.Log;
 using Lykke.RabbitMqBroker;
 using Lykke.RabbitMqBroker.Subscriber;
 using Lykke.Job.TradesConverter.Contract;
 using Lykke.Service.TradeVolumes.Core.Services;
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace Lykke.Service.TradeVolumes.Subscribers
 {
@@ -18,6 +18,7 @@ namespace Lykke.Service.TradeVolumes.Subscribers
         private readonly string _connectionString;
         private readonly string _exchangeName;
         private readonly ITradeVolumesCalculator _tradeVolumesCalculator;
+
         private RabbitMqSubscriber<List<TradeLogItem>> _subscriber;
 
         public TradelogSubscriber(
@@ -61,7 +62,7 @@ namespace Lykke.Service.TradeVolumes.Subscribers
             }
             catch (Exception ex)
             {
-                await _log.WriteErrorAsync("TradelogSubscriber.ProcessMessageAsync", arg.ToJson(), ex);
+                _log.WriteError("TradelogSubscriber.ProcessMessageAsync", arg, ex);
                 throw;
             }
         }
@@ -73,7 +74,7 @@ namespace Lykke.Service.TradeVolumes.Subscribers
 
         public void Stop()
         {
-            _subscriber.Stop();
+            _subscriber?.Stop();
         }
     }
 }

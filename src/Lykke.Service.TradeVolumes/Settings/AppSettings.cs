@@ -50,6 +50,9 @@ namespace Lykke.Service.TradeVolumes.Settings
 
         public string TradelogExchangeName { get; set; }
 
+        [Optional]
+        public bool? DisableRabbitMqConnection { get; set; }
+
         public int WarningDelayInHours { get; set; }
 
         public int TradesCacheWarningCount { get; set; }

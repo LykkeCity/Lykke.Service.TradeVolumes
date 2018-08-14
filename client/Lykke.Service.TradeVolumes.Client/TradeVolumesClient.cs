@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Common.Log;
 using Lykke.Service.TradeVolumes.Client.AutorestClient;
 using Lykke.Service.TradeVolumes.Client.Models;
 
@@ -9,13 +8,10 @@ namespace Lykke.Service.TradeVolumes.Client
 {
     public class TradeVolumesClient : ITradeVolumesClient, IDisposable
     {
-        private readonly ILog _log;
         private TradeVolumesAPI _service;
 
-        public TradeVolumesClient(string serviceUrl, ILog log)
+        public TradeVolumesClient(string serviceUrl)
         {
-            _log = log;
-
             if (string.IsNullOrWhiteSpace(serviceUrl))
                 throw new ArgumentNullException(nameof(serviceUrl));
 

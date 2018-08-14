@@ -8,8 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Lykke.Common" Version="6.8.6" />
-    <PackageReference Include="Lykke.Service.Assets.Client" Version="4.0.1" />
+    <PackageReference Include="Lykke.Service.Assets.Client" Version="4.4.0" />
   </ItemGroup>
 
   <ItemGroup>

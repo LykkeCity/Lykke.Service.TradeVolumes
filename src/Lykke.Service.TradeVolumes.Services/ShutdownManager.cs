@@ -1,28 +1,25 @@
-﻿using System.Threading.Tasks;
-using Common.Log;
+﻿using Common;
 using Lykke.Service.TradeVolumes.Core.Services;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace Lykke.Service.TradeVolumes.Services
 {
-    // NOTE: Sometimes, shutdown process should be expressed explicitly. 
-    // If this is your case, use this class to manage shutdown.
-    // For example, sometimes some state should be saved only after all incoming message processing and 
-    // all periodical handler was stopped, and so on.
-    
     public class ShutdownManager : IShutdownManager
     {
-        private readonly ILog _log;
+        private readonly List<IStopable> _stopables;
 
-        public ShutdownManager(ILog log)
+        public ShutdownManager(IEnumerable<IStopable> stopables)
         {
-            _log = log;
+            _stopables = stopables.ToList();
         }
 
-        public async Task StopAsync()
+        public Task StopAsync()
         {
-            // TODO: Implement your shutdown logic here. Good idea is to log every step
+            Parallel.ForEach(_stopables, i => i.Stop());
 
-            await Task.CompletedTask;
+            return Task.CompletedTask;
         }
     }
 }
