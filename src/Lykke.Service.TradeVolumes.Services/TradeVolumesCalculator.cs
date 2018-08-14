@@ -118,7 +118,7 @@ namespace Lykke.Service.TradeVolumes.Services
                 var now = DateTime.UtcNow;
                 if (missingDelay >= _warningDelay && now.Subtract(_lastWarningTime).TotalMinutes >= 1)
                 {
-                    await _log.WriteWarningAsync(
+                    _log.WriteWarning(
                         nameof(TradeVolumesCalculator),
                         nameof(AddTradeLogItemsAsync),
                         $"Tradelog items are missing for {missingDelay.TotalMinutes} minutes");
@@ -363,7 +363,7 @@ namespace Lykke.Service.TradeVolumes.Services
                         var now = DateTime.UtcNow;
                         if (now.Subtract(_lastWarningTime).TotalMinutes >= 1)
                         {
-                            await _log.WriteWarningAsync(
+                            _log.WriteWarning(
                                 nameof(TradeVolumesCalculator),
                                 nameof(AddTradeLogItemsAsync),
                                 $"Tradelog items cache has {_tradesDict.Count} items!");

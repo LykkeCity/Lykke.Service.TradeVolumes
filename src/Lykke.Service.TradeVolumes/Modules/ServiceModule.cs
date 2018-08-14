@@ -62,6 +62,7 @@ namespace Lykke.Service.TradeVolumes.Modules
             builder.RegisterType<CachesManager>()
                 .As<ICachesManager>()
                 .As<IStartable>()
+                .As<IStopable>()
                 .SingleInstance();
 
             builder.RegisterType<AssetsDictionary>()
@@ -86,19 +87,18 @@ namespace Lykke.Service.TradeVolumes.Modules
                 .As<ITradeVolumesCalculator>()
                 .As<IStartable>()
                 .As<IStopable>()
-                .AutoActivate()
                 .SingleInstance()
                 .WithParameter("warningDelay", TimeSpan.FromHours(warningHoursDelay))
                 .WithParameter("cacheWarningCount", tradesCacheWarningCount)
                 .WithParameter("cacheTimeout", TimeSpan.FromHours(tradesCacheHoursTimeout));
 
-            builder.RegisterType<TradelogSubscriber>()
-                .As<IStartable>()
-                .As<IStopable>()
-                .AutoActivate()
-                .SingleInstance()
-                .WithParameter("connectionString", _settings.TradeVolumesService.RabbitMqConnString)
-                .WithParameter("exchangeName", _settings.TradeVolumesService.TradelogExchangeName);
+            if (!_settings.TradeVolumesService.DisableRabbitMqConnection.HasValue || !_settings.TradeVolumesService.DisableRabbitMqConnection.Value)
+                builder.RegisterType<TradelogSubscriber>()
+                    .As<IStartable>()
+                    .As<IStopable>()
+                    .SingleInstance()
+                    .WithParameter("connectionString", _settings.TradeVolumesService.RabbitMqConnString)
+                    .WithParameter("exchangeName", _settings.TradeVolumesService.TradelogExchangeName);
         }
     }
 }
