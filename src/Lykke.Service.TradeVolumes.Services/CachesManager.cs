@@ -1,301 +1,175 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Collections.Concurrent;
+using System.Linq;
 using System.Threading.Tasks;
 using Common;
-using Common.Log;
-using Lykke.Service.TradeVolumes.Core;
 using Lykke.Service.TradeVolumes.Core.Services;
+using Lykke.Service.TradeVolumes.Services.Models;
+using StackExchange.Redis;
 
 namespace Lykke.Service.TradeVolumes.Services
 {
-    public class CachesManager : TimerPeriod, ICachesManager
+    public class CachesManager : ICachesManager
     {
-        private const int _cacheLifeHoursCount = 24 * Constants.MaxPeriodInDays;
+        private const string _clientAssetTradesSetKeyPattern = "TradeVolumes:volumes:walletId:{0}:assetId:{1}";
+        private const string _clientAssetPairTradesSetKeyPattern = "TradeVolumes:volumes:walletId:{0}:assetPairId:{1}";
+        private const string _tradeKeySuffixPattern = "ticks:{0}";
 
-        private readonly ILog _log;
-        private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, ConcurrentDictionary<DateTime, ConcurrentDictionary<DateTime, double>>>> _assetVolumesCache
-            = new ConcurrentDictionary<string, ConcurrentDictionary<string, ConcurrentDictionary<DateTime, ConcurrentDictionary<DateTime, double>>>>();
-        private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, ConcurrentDictionary<DateTime, ConcurrentDictionary<DateTime, (double, double)>>>> _assetPairVolumesCache
-            = new ConcurrentDictionary<string, ConcurrentDictionary<string, ConcurrentDictionary<DateTime, ConcurrentDictionary<DateTime, (double, double)>>>>();
+        private readonly IDatabase _db;
 
-        private DateTime _lastWarningTime = DateTime.MinValue;
-
-        public CachesManager(ILog log)
-            : base((int)TimeSpan.FromMinutes(15).TotalMilliseconds, log)
+        public CachesManager(IConnectionMultiplexer connectionMultiplexer)
         {
-            _log = log;
+            _db = connectionMultiplexer.GetDatabase();
         }
 
-        public override Task Execute()
-        {
-            CleanUpCache(_assetVolumesCache);
-            CleanUpCache(_assetPairVolumesCache);
-
-            return Task.CompletedTask;
-        }
-
-        public bool TryGetAssetTradeVolume(
+        public async Task<double?> GetAssetTradeVolumeAsync(
             string clientId,
             string assetId,
             DateTime from,
-            DateTime to,
-            out double result)
-        {
-            if (IsCahedPeriod(from)
-                && _assetVolumesCache.TryGetValue(clientId, out var clientDict)
-                && clientDict.TryGetValue(assetId, out var assetDict)
-                && assetDict.TryGetValue(from, out var periods)
-                && periods.TryGetValue(to, out result))
-            {
-                return true;
-            }
-            result = 0;
-            return false;
-        }
-
-        public void AddAssetTradeVolume(
-            string clientId,
-            string assetId,
-            DateTime from,
-            DateTime to,
-            double tradeVolume)
+            DateTime to)
         {
             if (!IsCahedPeriod(from))
-                return;
+                return null;
 
-            if (!_assetVolumesCache.TryGetValue(clientId, out var clientDict))
-            {
-                var periodsDict = new ConcurrentDictionary<DateTime, double>();
-                periodsDict.TryAdd(to, tradeVolume);
-                var assetDict = new ConcurrentDictionary<DateTime, ConcurrentDictionary<DateTime, double>>();
-                assetDict.TryAdd(from, periodsDict);
-                clientDict = new ConcurrentDictionary<string, ConcurrentDictionary<DateTime, ConcurrentDictionary<DateTime, double>>>();
-                clientDict.TryAdd(assetId, assetDict);
-                _assetVolumesCache.TryAdd(clientId, clientDict);
-            }
-            else if (!clientDict.TryGetValue(assetId, out var assetDict))
-            {
-                var periodsDict = new ConcurrentDictionary<DateTime, double>();
-                periodsDict.TryAdd(to, tradeVolume);
-                assetDict = new ConcurrentDictionary<DateTime, ConcurrentDictionary<DateTime, double>>();
-                assetDict.TryAdd(from, periodsDict);
-                clientDict.TryAdd(assetId, assetDict);
-            }
-            else if (!assetDict.TryGetValue(from, out var periodsDict))
-            {
-                periodsDict = new ConcurrentDictionary<DateTime, double>();
-                periodsDict.TryAdd(to, tradeVolume);
-                assetDict.TryAdd(from, periodsDict);
-            }
-            else
-            {
-                periodsDict.TryAdd(to, tradeVolume);
-            }
+            var keys = await GetSetKeysAsync(
+                string.Format(_clientAssetTradesSetKeyPattern, clientId, assetId),
+                from,
+                to);
+            if (keys.Length == 0)
+                return null;
 
-            if (_assetVolumesCache.Count > 1000)
-            {
-                var now = DateTime.UtcNow;
-                if (now.Subtract(_lastWarningTime).TotalMinutes >= 1)
-                {
-                    _log.WriteWarning(nameof(CachesManager), nameof(AddAssetTradeVolume), $"Already {_assetVolumesCache.Count} items in asset cache");
-                    _lastWarningTime = now;
-                }
-            }
+            var trades = await _db.StringGetAsync(keys);
+            var tradeVolumes = trades
+                .Where(i => i.HasValue)
+                .Select(i => double.Parse(i));
+
+            if (tradeVolumes.Any())
+                return tradeVolumes.Sum();
+            return null;
         }
 
-        public void UpdateAssetTradeVolume(
+        public async Task AddAssetTradeVolumeAsync(
             string clientId,
             string assetId,
             DateTime time,
             double tradeVolume)
         {
-            if (!_assetVolumesCache.TryGetValue(clientId, out var clientDict))
+            if (!IsCahedPeriod(time))
                 return;
 
-            if (!clientDict.TryGetValue(assetId, out var assetDict))
-                return;
+            string setKey = string.Format(_clientAssetTradesSetKeyPattern, clientId, assetId);
+            var tradeKeySuffix = string.Format(_tradeKeySuffixPattern, time.Ticks);
+            var tradeKey = $"{setKey}:{tradeKeySuffix}";
 
-            var periodStarts = new List<DateTime>(assetDict.Keys);
-            foreach (var periodStart in periodStarts)
+            var tx = _db.CreateTransaction();
+            var tasks = new List<Task>
             {
-                if (periodStart > time)
-                    continue;
-
-                if (!assetDict.TryGetValue(periodStart, out var periodsDict))
-                    continue;
-
-                var periodEnds = new List<DateTime>(periodsDict.Keys);
-                foreach (var periodEnd in periodEnds)
-                {
-                    if (periodEnd < time)
-                        continue;
-
-                    if (!periodsDict.TryGetValue(periodEnd, out var volume))
-                        continue;
-
-                    periodsDict.TryUpdate(periodEnd, volume, volume + tradeVolume);
-                }
-            }
+                tx.SortedSetAddAsync(setKey, tradeKeySuffix, time.Ticks)
+            };
+            var setKeyTask = tx.StringSetAsync(tradeKey, tradeVolume.ToString(), time.AddMonths(1).Subtract(DateTime.UtcNow));
+            tasks.Add(setKeyTask);
+            if (!await tx.ExecuteAsync())
+                throw new InvalidOperationException($"Error during trade volune adding for client {clientId} on asset {assetId}");
+            await Task.WhenAll(tasks);
+            if (!setKeyTask.Result)
+                throw new InvalidOperationException($"Error during trade volune adding for client {clientId} on asset {assetId}");
         }
 
-        public bool TryGetAssetPairTradeVolume(
+        public async Task<(double?, double?)> GetAssetPairTradeVolumeAsync(
             string clientId,
             string assetPairId,
             DateTime from,
-            DateTime to,
-            out (double,double) result)
-        {
-            if (IsCahedPeriod(from)
-                && _assetPairVolumesCache.TryGetValue(clientId, out var clientDict)
-                && clientDict.TryGetValue(assetPairId, out var assetPairDict)
-                && assetPairDict.TryGetValue(from, out var periodsDict)
-                && periodsDict.TryGetValue(to, out result))
-            {
-                return true;
-            }
-            result = (0,0);
-            return false;
-        }
-
-        public void AddAssetPairTradeVolume(
-            string clientId,
-            string assetPairId,
-            DateTime from,
-            DateTime to,
-            (double, double) tradeVolumes)
+            DateTime to)
         {
             if (!IsCahedPeriod(from))
-                return;
+                return (null, null);
 
-            if (!_assetPairVolumesCache.TryGetValue(clientId, out var clientDict))
-            {
-                var periodsDict = new ConcurrentDictionary<DateTime, (double, double)>();
-                periodsDict.TryAdd(to, tradeVolumes);
-                var assetDict = new ConcurrentDictionary<DateTime, ConcurrentDictionary<DateTime, (double, double)>>();
-                assetDict.TryAdd(from, periodsDict);
-                clientDict = new ConcurrentDictionary<string, ConcurrentDictionary<DateTime, ConcurrentDictionary<DateTime, (double, double)>>>();
-                clientDict.TryAdd(assetPairId, assetDict);
-                _assetPairVolumesCache.TryAdd(clientId, clientDict);
-            }
-            else if (!clientDict.TryGetValue(assetPairId, out var assetDict))
-            {
-                var periodsDict = new ConcurrentDictionary<DateTime, (double, double)>();
-                periodsDict.TryAdd(to, tradeVolumes);
-                assetDict = new ConcurrentDictionary<DateTime, ConcurrentDictionary<DateTime, (double, double)>>();
-                assetDict.TryAdd(from, periodsDict);
-                clientDict.TryAdd(assetPairId, assetDict);
-            }
-            else if (!assetDict.TryGetValue(from, out var periodsDict))
-            {
-                periodsDict = new ConcurrentDictionary<DateTime, (double, double)>();
-                periodsDict.TryAdd(to, tradeVolumes);
-                assetDict.TryAdd(from, periodsDict);
-            }
-            else
-            {
-                periodsDict.TryAdd(to, tradeVolumes);
-            }
+            var keys = await GetSetKeysAsync(
+                string.Format(_clientAssetPairTradesSetKeyPattern, clientId, assetPairId),
+                from,
+                to);
+            if (keys.Length == 0)
+                return (null, null);
 
-            if (_assetPairVolumesCache.Count > 1000)
+            var trades = await _db.StringGetAsync(keys);
+            var tradeVolumes = trades
+                .Where(i => i.HasValue)
+                .Select(i => i.ToString().DeserializeJson<CacheTradeVolumeModel>());
+            if (tradeVolumes.Any())
             {
-                var now = DateTime.UtcNow;
-                if (now.Subtract(_lastWarningTime).TotalMinutes >= 1)
+                double baseResult = 0;
+                double quotingResult = 0;
+                foreach (var tradeVolume in tradeVolumes)
                 {
-                    _log.WriteWarning(nameof(CachesManager), nameof(AddAssetPairTradeVolume), $"Already {_assetPairVolumesCache.Count} items in asset pair cache");
-                    _lastWarningTime = now;
+                    baseResult += tradeVolume.BaseVolume;
+                    quotingResult += tradeVolume.QuotingVolume;
                 }
+                return (baseResult, quotingResult);
             }
+            return (null, null);
         }
 
-        public void UpdateAssetPairTradeVolume(
+        public async Task AddAssetPairTradeVolumeAsync(
             string clientId,
             string assetPairId,
             DateTime time,
             (double, double) tradeVolumes)
         {
-            if (!_assetPairVolumesCache.TryGetValue(clientId, out var clientDict))
+            if (!IsCahedPeriod(time))
                 return;
 
-            if (!clientDict.TryGetValue(assetPairId, out var assetDict))
-                return;
-
-            var periodStarts = new List<DateTime>(assetDict.Keys);
-            foreach (var periodStart in periodStarts)
+            string setKey = string.Format(_clientAssetPairTradesSetKeyPattern, clientId, assetPairId);
+            var tradeKeySuffix = string.Format(_tradeKeySuffixPattern, time.Ticks);
+            var tradeKey = $"{setKey}:{tradeKeySuffix}";
+            var tradeVolume = new CacheTradeVolumeModel
             {
-                if (periodStart > time)
-                    continue;
+                BaseVolume = tradeVolumes.Item1,
+                QuotingVolume = tradeVolumes.Item2,
+            };
 
-                if (!assetDict.TryGetValue(periodStart, out var periodsDict))
-                    continue;
-
-                var periodEnds = new List<DateTime>(periodsDict.Keys);
-                foreach (var periodEnd in periodEnds)
-                {
-                    if (periodEnd < time)
-                        continue;
-
-                    if (!periodsDict.TryGetValue(periodEnd, out var volumes))
-                        continue;
-
-                    periodsDict.TryUpdate(periodEnd, (volumes.Item1 + tradeVolumes.Item1, volumes.Item2 + tradeVolumes.Item2), volumes);
-                }
-            }
+            var tx = _db.CreateTransaction();
+            var tasks = new List<Task>
+            {
+                tx.SortedSetAddAsync(setKey, tradeKeySuffix, time.Ticks)
+            };
+            var setKeyTask = tx.StringSetAsync(tradeKey, tradeVolume.ToJson(), time.AddMonths(1).Subtract(DateTime.UtcNow));
+            tasks.Add(setKeyTask);
+            if (!await tx.ExecuteAsync())
+                throw new InvalidOperationException($"Error during trade volune adding for client {clientId} on asset pair {assetPairId}");
+            await Task.WhenAll(tasks);
+            if (!setKeyTask.Result)
+                throw new InvalidOperationException($"Error during trade volune adding for client {clientId} on asset pair {assetPairId}");
         }
 
         private bool IsCahedPeriod(DateTime from)
         {
-            DateTime now = DateTime.UtcNow.RoundToHour();
-            var periodHoursLength = (int)now.Subtract(from).TotalHours;
-            return periodHoursLength <= _cacheLifeHoursCount;
+            return from >= DateTime.UtcNow.RoundToHour().AddMonths(-1);
         }
 
-        private void CleanUpCache<T>(ConcurrentDictionary<string, ConcurrentDictionary<string, ConcurrentDictionary<DateTime, ConcurrentDictionary<DateTime, T>>>> cache)
+        private async Task<RedisKey[]> GetSetKeysAsync(
+            string setKey,
+            DateTime from,
+            DateTime to)
         {
-            DateTime now = DateTime.UtcNow.RoundToHour();
-            DateTime cacheStart = now.AddDays(-1);
-
-            var clientsToRemove = new List<string>();
-            var clients = new List<string>(cache.Keys);
-            foreach (var client in clients)
+            var actualPeriodStartScore = DateTime.UtcNow.AddMonths(-1).Ticks;
+            var startScore = actualPeriodStartScore > from.Ticks ? actualPeriodStartScore : from.Ticks;
+            var tx = _db.CreateTransaction();
+            tx.AddCondition(Condition.KeyExists(setKey));
+            var tasks = new List<Task>
             {
-                if (!cache.TryGetValue(client, out var clientAssetsDict))
-                    continue;
+                tx.SortedSetRemoveRangeByScoreAsync(setKey, 0, actualPeriodStartScore)
+            };
+            var getKeysTask = tx.SortedSetRangeByScoreAsync(setKey, startScore, to.Ticks);
+            tasks.Add(getKeysTask);
+            if (await tx.ExecuteAsync())
+                await Task.WhenAll(tasks);
+            else
+                return new RedisKey[0];
 
-                var assetsToRemove = new List<string>();
-                var clientAssets = new List<string>(clientAssetsDict.Keys);
-                foreach (var clientAsset in clientAssets)
-                {
-                    if (!clientAssetsDict.TryGetValue(client, out var periodsDict))
-                        continue;
-
-                    var keysToRemove = new List<DateTime>();
-                    var periodStarts = new List<DateTime>(periodsDict.Keys);
-                    foreach (var periodStart in periodStarts)
-                    {
-                        if (periodStart >= cacheStart)
-                            continue;
-
-                        keysToRemove.Add(periodStart);
-                    }
-                    foreach (var key in keysToRemove)
-                    {
-                        periodsDict.TryRemove(key, out var _);
-                    }
-                    if (periodsDict.Count == 0)
-                        assetsToRemove.Add(clientAsset);
-                }
-                foreach (var asset in assetsToRemove)
-                {
-                    clientAssetsDict.TryRemove(asset, out var _);
-                }
-                if (clientAssetsDict.Count == 0)
-                    clientsToRemove.Add(client);
-            }
-            foreach (var client in clientsToRemove)
-            {
-                cache.Remove(client, out var _);
-            }
+            return getKeysTask.Result
+                .Select(i => (RedisKey)$"{setKey}:{i.ToString()}")
+                .ToArray();
         }
+
     }
 }

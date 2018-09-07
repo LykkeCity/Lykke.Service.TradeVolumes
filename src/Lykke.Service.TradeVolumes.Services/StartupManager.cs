@@ -1,28 +1,25 @@
-﻿using System.Threading.Tasks;
-using Common.Log;
+﻿using System.Collections.Generic;
+using System.Threading.Tasks;
+using Autofac;
 using Lykke.Service.TradeVolumes.Core.Services;
 
 namespace Lykke.Service.TradeVolumes.Services
 {
-    // NOTE: Sometimes, startup process which is expressed explicitly is not just better, 
-    // but the only way. If this is your case, use this class to manage startup.
-    // For example, sometimes some state should be restored before any periodical handler will be started, 
-    // or any incoming message will be processed and so on.
-    // Do not forget to remove As<IStartable>() and AutoActivate() from DI registartions of services, 
-    // which you want to startup explicitly.
-
     public class StartupManager : IStartupManager
     {
-        private readonly ILog _log;
+        private readonly List<IStartable> _startables = new List<IStartable>();
 
-        public StartupManager(ILog log)
+        public StartupManager(IEnumerable<IStartStop> startables)
         {
-            _log = log;
+            _startables.AddRange(startables);
         }
 
         public async Task StartAsync()
         {
-            // TODO: Implement your startup logic here. Good idea is to log every step
+            foreach (var startable in _startables)
+            {
+                startable.Start();
+            }
 
             await Task.CompletedTask;
         }

@@ -33,7 +33,7 @@ namespace Lykke.Service.TradeVolumes.Settings
 
     public class MonitoringServiceClientSettings
     {
-        [HttpCheck("api/isalive", false)]
+        [HttpCheck("api/isalive")]
         public string MonitoringServiceUrl { get; set; }
     }
 
@@ -50,12 +50,12 @@ namespace Lykke.Service.TradeVolumes.Settings
 
         public string TradelogExchangeName { get; set; }
 
+        public string RedisConnString { get; set; }
+
         [Optional]
         public bool? DisableRabbitMqConnection { get; set; }
 
         public int WarningDelayInHours { get; set; }
-
-        public int TradesCacheWarningCount { get; set; }
 
         public int TradesCacheTimeoutInHours { get; set; }
     }

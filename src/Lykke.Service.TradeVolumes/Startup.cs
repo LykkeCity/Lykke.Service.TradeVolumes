@@ -1,9 +1,12 @@
-﻿using Autofac;
+﻿using System;
+using System.Threading.Tasks;
+using Autofac;
 using Autofac.Extensions.DependencyInjection;
 using AzureStorage.Tables;
 using Common.Log;
 using Lykke.SettingsReader;
 using Lykke.SlackNotification.AzureQueue;
+using Lykke.Common;
 using Lykke.Common.ApiLibrary.Middleware;
 using Lykke.Common.ApiLibrary.Swagger;
 using Lykke.Logs;
@@ -15,8 +18,6 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using System;
-using System.Threading.Tasks;
 
 namespace Lykke.Service.TradeVolumes
 {
@@ -54,7 +55,12 @@ namespace Lykke.Service.TradeVolumes
                 });
 
                 var builder = new ContainerBuilder();
-                var settingsManager = Configuration.LoadSettings<AppSettings>();
+                var settingsManager = Configuration.LoadSettings<AppSettings>(o =>
+                {
+                    o.SetConnString(s => s.SlackNotifications.AzureQueue.ConnectionString);
+                    o.SetQueueName(s => s.SlackNotifications.AzureQueue.QueueName);
+                    o.SenderName = $"{AppEnvironment.Name} {AppEnvironment.Version}";
+                });
                 _monitoringServiceUrl = settingsManager.CurrentValue.MonitoringServiceClient.MonitoringServiceUrl;
                 Log = CreateLogWithSlack(services, settingsManager);
 

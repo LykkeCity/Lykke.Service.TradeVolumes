@@ -1,17 +1,15 @@
-﻿using Autofac;
-using Common;
+﻿using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 using Common.Log;
 using Lykke.RabbitMqBroker;
 using Lykke.RabbitMqBroker.Subscriber;
 using Lykke.Job.TradesConverter.Contract;
 using Lykke.Service.TradeVolumes.Core.Services;
-using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
 
 namespace Lykke.Service.TradeVolumes.Subscribers
 {
-    internal class TradelogSubscriber : IStartable, IStopable
+    internal class TradelogSubscriber : IStartStop
     {
         private readonly ILog _log;
         private readonly IConsole _console;
