@@ -23,7 +23,6 @@ namespace Lykke.Service.TradeVolumes
 {
     public class Startup
     {
-        private LogToConsole _console;
         private string _monitoringServiceUrl;
 
         public IContainer ApplicationContainer { get; private set; }
@@ -64,7 +63,7 @@ namespace Lykke.Service.TradeVolumes
                 _monitoringServiceUrl = settingsManager.CurrentValue.MonitoringServiceClient.MonitoringServiceUrl;
                 Log = CreateLogWithSlack(services, settingsManager);
 
-                builder.RegisterModule(new ServiceModule(settingsManager, _console, Log));
+                builder.RegisterModule(new ServiceModule(settingsManager, Log));
                 builder.Populate(services);
                 ApplicationContainer = builder.Build();
 
@@ -167,17 +166,17 @@ namespace Lykke.Service.TradeVolumes
 
         private ILog CreateLogWithSlack(IServiceCollection services, IReloadingManager<AppSettings> settings)
         {
-            _console = new LogToConsole();
+            var console = new LogToConsole();
             var aggregateLogger = new AggregateLogger();
 
-            aggregateLogger.AddLog(_console);
+            aggregateLogger.AddLog(console);
 
             var dbLogConnectionStringManager = settings.Nested(x => x.TradeVolumesService.LogsConnString);
             var dbLogConnectionString = dbLogConnectionStringManager.CurrentValue;
 
             if (string.IsNullOrEmpty(dbLogConnectionString))
             {
-                _console.WriteWarning(nameof(Startup), nameof(CreateLogWithSlack), "Table loggger is not inited");
+                console.WriteWarning(nameof(Startup), nameof(CreateLogWithSlack), "Table loggger is not inited");
                 return aggregateLogger;
             }
 
@@ -185,8 +184,8 @@ namespace Lykke.Service.TradeVolumes
                 throw new InvalidOperationException($"LogsConnString {dbLogConnectionString} is not filled in settings");
 
             var persistenceManager = new LykkeLogToAzureStoragePersistenceManager(
-                AzureTableStorage<LogEntity>.Create(dbLogConnectionStringManager, "TradeVolumesLog", _console),
-                _console);
+                AzureTableStorage<LogEntity>.Create(dbLogConnectionStringManager, "TradeVolumesLog", console),
+                console);
 
             // Creating slack notification service, which logs own azure queue processing messages to aggregate log
             var slackService = services.UseSlackNotificationsSenderViaAzureQueue(new AzureQueueIntegration.AzureQueueSettings
@@ -195,13 +194,13 @@ namespace Lykke.Service.TradeVolumes
                 QueueName = settings.CurrentValue.SlackNotifications.AzureQueue.QueueName
             }, aggregateLogger);
 
-            var slackNotificationsManager = new LykkeLogToAzureSlackNotificationsManager(slackService, _console);
+            var slackNotificationsManager = new LykkeLogToAzureSlackNotificationsManager(slackService, console);
 
             // Creating azure storage logger, which logs own messages to concole log
             var azureStorageLogger = new LykkeLogToAzureStorage(
                 persistenceManager,
                 slackNotificationsManager,
-                _console);
+                console);
 
             azureStorageLogger.Start();
 

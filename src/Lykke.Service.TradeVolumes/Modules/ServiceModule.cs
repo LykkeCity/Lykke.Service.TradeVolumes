@@ -18,26 +18,17 @@ namespace Lykke.Service.TradeVolumes.Modules
     {
         private readonly IReloadingManager<AppSettings> _settingsManager;
         private readonly AppSettings _settings;
-        private readonly IConsole _console;
         private readonly ILog _log;
 
-        public ServiceModule(
-            IReloadingManager<AppSettings> settingsManager,
-            IConsole console,
-            ILog log)
+        public ServiceModule(IReloadingManager<AppSettings> settingsManager, ILog log)
         {
             _settingsManager = settingsManager;
             _settings = settingsManager.CurrentValue;
-            _console = console;
             _log = log;
         }
 
         protected override void Load(ContainerBuilder builder)
         {
-            builder.RegisterInstance(_console)
-                .As<IConsole>()
-                .SingleInstance();
-
             builder.RegisterInstance(_log)
                 .As<ILog>()
                 .SingleInstance();
