@@ -11,8 +11,8 @@ namespace Lykke.Service.TradeVolumes.Services
 {
     public class CachesManager : ICachesManager
     {
-        private const string _clientAssetTradesSetKeyPattern = "TradeVolumes:volumes:walletId:{0}:assetId:{1}";
-        private const string _clientAssetPairTradesSetKeyPattern = "TradeVolumes:volumes:walletId:{0}:assetPairId:{1}";
+        private const string _clientAssetTradesSetKeyPattern = "TradeVolumes:volumes:assetId:{0}:walletId:{1}";
+        private const string _clientAssetPairTradesSetKeyPattern = "TradeVolumes:volumes:assetPairId:{0}:walletId:{1}";
         private const string _tradeKeySuffixPattern = "ticks:{0}";
 
         private readonly IDatabase _db;
@@ -32,7 +32,7 @@ namespace Lykke.Service.TradeVolumes.Services
                 return null;
 
             var keys = await GetSetKeysAsync(
-                string.Format(_clientAssetTradesSetKeyPattern, clientId, assetId),
+                string.Format(_clientAssetTradesSetKeyPattern, assetId, clientId),
                 from,
                 to);
             if (keys.Length == 0)
@@ -57,7 +57,7 @@ namespace Lykke.Service.TradeVolumes.Services
             if (!IsCahedPeriod(time))
                 return;
 
-            string setKey = string.Format(_clientAssetTradesSetKeyPattern, clientId, assetId);
+            string setKey = string.Format(_clientAssetTradesSetKeyPattern, assetId, clientId);
             var tradeKeySuffix = string.Format(_tradeKeySuffixPattern, time.Ticks);
             var tradeKey = $"{setKey}:{tradeKeySuffix}";
 
@@ -85,7 +85,7 @@ namespace Lykke.Service.TradeVolumes.Services
                 return (null, null);
 
             var keys = await GetSetKeysAsync(
-                string.Format(_clientAssetPairTradesSetKeyPattern, clientId, assetPairId),
+                string.Format(_clientAssetPairTradesSetKeyPattern, assetPairId, clientId),
                 from,
                 to);
             if (keys.Length == 0)
@@ -118,7 +118,7 @@ namespace Lykke.Service.TradeVolumes.Services
             if (!IsCahedPeriod(time))
                 return;
 
-            string setKey = string.Format(_clientAssetPairTradesSetKeyPattern, clientId, assetPairId);
+            string setKey = string.Format(_clientAssetPairTradesSetKeyPattern, assetPairId, clientId);
             var tradeKeySuffix = string.Format(_tradeKeySuffixPattern, time.Ticks);
             var tradeKey = $"{setKey}:{tradeKeySuffix}";
             var tradeVolume = new CacheTradeVolumeModel
