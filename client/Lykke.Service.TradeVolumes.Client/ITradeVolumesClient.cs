@@ -17,6 +17,7 @@ namespace Lykke.Service.TradeVolumes.Client
         /// <param name="fromDate">Search from (inclusive) with hour precision.</param>
         /// <param name="toDate">Search to (exclusive) with hour precision.</param>
         /// <returns>Asset trade volume.</returns>
+        [Obsolete("This method has quite poor performance.")]
         Task<AssetTradeVolumeResponse> GetAssetTradeVolumeAsync(
             string assetId,
             DateTime fromDate,
@@ -33,7 +34,7 @@ namespace Lykke.Service.TradeVolumes.Client
             string assetPairId,
             DateTime fromDate,
             DateTime toDate);
-        
+
         /// <summary>
         /// Get trade volume for specified asset pairs.
         /// </summary>
@@ -54,6 +55,7 @@ namespace Lykke.Service.TradeVolumes.Client
         /// <param name="fromDate">Search from (inclusive) with hour precision.</param>
         /// <param name="toDate">Search to (exclusive) with hour precision.</param>
         /// <returns>Asset trade volume for client.</returns>
+        [Obsolete("This method has quite poor performance.")]
         Task<AssetTradeVolumeResponse> GetClientAssetTradeVolumeAsync(
             string assetId,
             string clientId,
@@ -82,6 +84,7 @@ namespace Lykke.Service.TradeVolumes.Client
         /// <param name="fromDate">Search from (inclusive) with hour precision.</param>
         /// <param name="toDate">Search to (exclusive) with hour precision.</param>
         /// <returns>Asset trade volume for client.</returns>
+        [Obsolete("This method has quite poor performance.")]
         Task<AssetTradeVolumeResponse> GetWalletAssetTradeVolumeAsync(
             string assetId,
             string walletId,
