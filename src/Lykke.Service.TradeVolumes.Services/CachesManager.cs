@@ -11,7 +11,7 @@ namespace Lykke.Service.TradeVolumes.Services
 {
     public class CachesManager : ICachesManager
     {
-        private const string _clientAssetTradesSetKeyPattern = "TradeVolumes:volumes:assetId:{0}:walletId:{1}";
+        //private const string _clientAssetTradesSetKeyPattern = "TradeVolumes:volumes:assetId:{0}:walletId:{1}";
         private const string _clientAssetPairTradesSetKeyPattern = "TradeVolumes:volumes:assetPairId:{0}:walletId:{1}";
         private const string _tradeKeySuffixPattern = "ticks:{0}";
 
@@ -28,6 +28,9 @@ namespace Lykke.Service.TradeVolumes.Services
             DateTime from,
             DateTime to)
         {
+            return null; //removed asset volumes caching since it's not really used anywhere and generates to many redis keys.
+
+            /*
             if (!IsCahedPeriod(from))
                 return null;
 
@@ -46,6 +49,7 @@ namespace Lykke.Service.TradeVolumes.Services
             if (tradeVolumes.Any())
                 return tradeVolumes.Sum();
             return null;
+            */
         }
 
         public async Task AddAssetTradeVolumeAsync(
@@ -54,6 +58,9 @@ namespace Lykke.Service.TradeVolumes.Services
             DateTime time,
             double tradeVolume)
         {
+            return; //removed asset volumes caching since it's not really used anywhere and generates to many redis keys.
+
+            /*
             if (!IsCahedPeriod(time))
                 return;
 
@@ -73,6 +80,7 @@ namespace Lykke.Service.TradeVolumes.Services
             await Task.WhenAll(tasks);
             if (!setKeyTask.Result)
                 throw new InvalidOperationException($"Error during trade volune adding for client {clientId} on asset {assetId}");
+            */
         }
 
         public async Task<(double?, double?)> GetAssetPairTradeVolumeAsync(
