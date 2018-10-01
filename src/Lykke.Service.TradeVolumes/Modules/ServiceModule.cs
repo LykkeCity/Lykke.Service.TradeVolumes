@@ -3,6 +3,7 @@ using Autofac;
 using Common.Log;
 using Lykke.Common;
 using Lykke.Sdk;
+using Lykke.Sdk.Health;
 using Lykke.SettingsReader;
 using Lykke.Service.Assets.Client;
 using Lykke.Service.TradeVolumes.Core.Services;

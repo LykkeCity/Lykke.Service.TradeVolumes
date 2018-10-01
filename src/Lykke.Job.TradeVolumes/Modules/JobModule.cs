@@ -3,6 +3,7 @@ using Autofac;
 using Lykke.Job.TradeVolumes.Settings;
 using Lykke.Job.TradeVolumes.Subscribers;
 using Lykke.Sdk;
+using Lykke.Sdk.Health;
 using Lykke.Service.Assets.Client;
 using Lykke.Service.TradeVolumes.AzureRepositories;
 using Lykke.Service.TradeVolumes.Core.Repositories;
@@ -27,6 +28,10 @@ namespace Lykke.Job.TradeVolumes.Modules
         protected override void Load(ContainerBuilder builder)
         {
             var settings = _appSettings.TradeVolumesJob;
+
+            builder.RegisterType<HealthService>()
+                .As<IHealthService>()
+                .SingleInstance();
 
             builder.RegisterType<StartupManager>()
                 .As<IStartupManager>()
