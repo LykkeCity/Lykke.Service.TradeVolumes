@@ -45,18 +45,6 @@ namespace Lykke.Service.TradeVolumes.Settings
         [AzureTableCheck]
         public string TradeVolumesConnString { get; set; }
 
-        [AmqpCheck]
-        public string RabbitMqConnString { get; set; }
-
-        public string TradelogExchangeName { get; set; }
-
         public string RedisConnString { get; set; }
-
-        [Optional]
-        public bool? DisableRabbitMqConnection { get; set; }
-
-        public int WarningDelayInHours { get; set; }
-
-        public int TradesCacheTimeoutInHours { get; set; }
     }
 }

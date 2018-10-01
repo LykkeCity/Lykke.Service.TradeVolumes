@@ -5,25 +5,24 @@ namespace Lykke.Service.TradeVolumes.Core.Services
 {
     public interface ICachesManager
     {
-        Task<double?> GetAssetTradeVolumeAsync(
-            string clientId,
-            string assetId,
-            DateTime from,
-            DateTime to);
-        Task AddAssetTradeVolumeAsync(
-            string clientId,
-            string assetId,
-            DateTime time,
-            double tradeVolume);
         Task<(double?, double?)> GetAssetPairTradeVolumeAsync(
-            string clientId,
             string assetPairId,
+            string clientId,
             DateTime from,
-            DateTime to);
+            DateTime to,
+            bool isUser);
         Task AddAssetPairTradeVolumeAsync(
-            string clientId,
             string assetPairId,
+            string userId,
+            string walletId,
+            string tradeId,
             DateTime time,
             (double, double) tradeVolumes);
+        Task<DateTime> GetFirstCachedTimestampAsync(
+            string assetPairId,
+            string clientId,
+            DateTime from,
+            DateTime to,
+            bool isUser);
     }
 }

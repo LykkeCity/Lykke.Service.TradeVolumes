@@ -11,6 +11,7 @@ using Lykke.Common.ApiLibrary.Middleware;
 using Lykke.Common.ApiLibrary.Swagger;
 using Lykke.Logs;
 using Lykke.MonitoringServiceApiCaller;
+using Lykke.Sdk;
 using Lykke.Service.TradeVolumes.Core.Services;
 using Lykke.Service.TradeVolumes.Modules;
 using Lykke.Service.TradeVolumes.Settings;

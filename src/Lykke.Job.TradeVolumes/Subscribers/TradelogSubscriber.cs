@@ -2,12 +2,13 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Common.Log;
+using Lykke.Common.Log;
 using Lykke.RabbitMqBroker;
 using Lykke.RabbitMqBroker.Subscriber;
 using Lykke.Job.TradesConverter.Contract;
 using Lykke.Service.TradeVolumes.Core.Services;
 
-namespace Lykke.Service.TradeVolumes.Subscribers
+namespace Lykke.Job.TradeVolumes.Subscribers
 {
     internal class TradelogSubscriber : IStartStop
     {
@@ -30,10 +31,22 @@ namespace Lykke.Service.TradeVolumes.Subscribers
             _exchangeName = exchangeName;
         }
 
+        public TradelogSubscriber(
+            ITradeVolumesCalculator tradeVolumesCalculator,
+            ILogFactory logFactory,
+            string connectionString,
+            string exchangeName)
+        {
+            _tradeVolumesCalculator = tradeVolumesCalculator;
+            _log = logFactory.CreateLog(this);
+            _connectionString = connectionString;
+            _exchangeName = exchangeName;
+        }
+
         public void Start()
         {
             var settings = RabbitMqSubscriptionSettings
-                .CreateForSubscriber(_connectionString, _exchangeName, "tradevolumes")
+                .ForSubscriber(_connectionString, _exchangeName, "tradevolumes")
                 .MakeDurable();
 
             _subscriber = new RabbitMqSubscriber<List<TradeLogItem>>(settings,

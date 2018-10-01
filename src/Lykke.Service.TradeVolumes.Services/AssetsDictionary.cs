@@ -36,7 +36,7 @@ namespace Lykke.Service.TradeVolumes.Services
         public async Task<string> GetShortNameAsync(string assetId)
         {
             var alias = CleanupNameForTable(assetId);
-            if (alias.Length <= 31)
+            if (alias.Length <= 31) // not GUID
                 return alias;
 
             if (!_assetsDict.ContainsKey(assetId))
@@ -61,19 +61,19 @@ namespace Lykke.Service.TradeVolumes.Services
             var info1 = await _assetsService.AssetGetAsync(asset1);
             var info2 = await _assetsService.AssetGetAsync(asset2);
 
-            var items1 = new List<string> { info1.Name, info1.DisplayId, info1.Symbol };
-            var items2 = new List<string> { info2.Name, info2.DisplayId, info2.Symbol };
-            for (int i = 0; i < items1.Count; ++i)
+            var items1 = new HashSet<string> { info1.Name, info1.DisplayId, info1.Symbol };
+            var items2 = new HashSet<string> { info2.Name, info2.DisplayId, info2.Symbol };
+            foreach (var item1 in items1)
             {
-                if (string.IsNullOrWhiteSpace(items1[i]))
+                if (string.IsNullOrWhiteSpace(item1))
                     continue;
 
-                for (int j = 0; j < items2.Count; ++j)
+                foreach (var item2 in items2)
                 {
-                    if (string.IsNullOrWhiteSpace(items2[j]))
+                    if (string.IsNullOrWhiteSpace(item2))
                         continue;
 
-                    result = await SearchForPairIdAsync(items1[i], items2[j]);
+                    result = await SearchForPairIdAsync(item1, item2);
                     if (result != null)
                         return result;
                 }
@@ -84,6 +84,9 @@ namespace Lykke.Service.TradeVolumes.Services
 
         private async Task<string> SearchForPairIdAsync(string asset1, string asset2)
         {
+            if (asset1.Length > 20 || asset2.Length > 20) //any assetId is guid
+                return null;
+
             string id1 = $"{asset1}{asset2}";
             if (_pairsDict.ContainsKey(id1))
                 return id1;

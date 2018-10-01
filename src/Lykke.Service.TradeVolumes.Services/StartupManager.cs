@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Threading.Tasks;
 using Autofac;
+using Lykke.Sdk;
 using Lykke.Service.TradeVolumes.Core.Services;
 
 namespace Lykke.Service.TradeVolumes.Services
