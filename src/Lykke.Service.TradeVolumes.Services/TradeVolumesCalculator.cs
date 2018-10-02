@@ -310,7 +310,7 @@ namespace Lykke.Service.TradeVolumes.Services
                     hourEnd,
                     true);
                 if (cachedVolumes.Item1.HasValue && cachedVolumes.Item2.HasValue)
-                    result[userId] = isBaseAsset
+                    result[_tradeVolumesRepository.GetUserVolumeKey(userId)] = isBaseAsset
                         ? new [] { cachedVolumes.Item1.Value, cachedVolumes.Item2.Value }
                         : new [] { cachedVolumes.Item2.Value, cachedVolumes.Item1.Value };
                 else
@@ -327,7 +327,7 @@ namespace Lykke.Service.TradeVolumes.Services
                     hourEnd,
                     false);
                 if (cachedVolumes.Item1.HasValue && cachedVolumes.Item2.HasValue)
-                    result[walletId] = isBaseAsset
+                    result[_tradeVolumesRepository.GetWalletVolumeKey(walletId)] = isBaseAsset
                         ? new[] { cachedVolumes.Item1.Value, cachedVolumes.Item2.Value }
                         : new[] { cachedVolumes.Item2.Value, cachedVolumes.Item1.Value };
                 else
