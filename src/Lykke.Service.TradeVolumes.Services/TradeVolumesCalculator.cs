@@ -78,7 +78,7 @@ namespace Lykke.Service.TradeVolumes.Services
                             usersHash.Add(item.UserId);
                             walletsHash.Add(item.WalletId);
 
-                            if (processedItemsDict[item.TradeId] == item.WalletId) //to avoid double counting
+                            if (processedItemsDict.ContainsKey(item.TradeId) && processedItemsDict[item.TradeId] == item.WalletId) //to avoid double counting
                                 continue;
 
                             await UpdateCachedVolumesAsync(
