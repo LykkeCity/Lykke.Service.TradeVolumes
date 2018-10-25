@@ -147,7 +147,7 @@ namespace Lykke.Service.TradeVolumes.Services
 
             var setItems = await _db.SortedSetRangeByScoreAsync(setKey, from.Ticks, to.Ticks);
             var resultItem = setItems?.FirstOrDefault(i => i.HasValue);
-            if (resultItem == null)
+            if (resultItem == null || !resultItem.HasValue || resultItem.ToString() == null)
                 return to;
 
             var parts = resultItem.ToString().Split(':', StringSplitOptions.RemoveEmptyEntries);
