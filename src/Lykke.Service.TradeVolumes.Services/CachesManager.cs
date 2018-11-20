@@ -90,7 +90,7 @@ namespace Lykke.Service.TradeVolumes.Services
                     });
                     await _db.SortedSetRemoveAsync(userKey, suffix);
                     await _db.SortedSetRemoveAsync(walletKey, suffix);
-                    return; 
+                    return;
                 }
             }
 
@@ -147,7 +147,7 @@ namespace Lykke.Service.TradeVolumes.Services
 
             var setItems = await _db.SortedSetRangeByScoreAsync(setKey, from.Ticks, to.Ticks);
             var resultItem = setItems?.FirstOrDefault(i => i.HasValue);
-            if (resultItem == null || !resultItem.HasValue || resultItem.ToString() == null)
+            if (!resultItem.HasValue || resultItem.ToString() == null)
                 return to;
 
             var parts = resultItem.ToString().Split(':', StringSplitOptions.RemoveEmptyEntries);

@@ -114,6 +114,7 @@ namespace Lykke.Service.TradeVolumes
             try
             {
                 // NOTE: Service not yet recieve and process requests here
+                Log.WriteMonitor("", $"Env: {Program.EnvInfo}", "Initializing");
 
                 await ApplicationContainer.Resolve<IStartupManager>().StartAsync();
 

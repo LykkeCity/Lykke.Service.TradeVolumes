@@ -1,7 +1,6 @@
 ﻿using System;
 using Autofac;
 using Common.Log;
-using Lykke.Common;
 using Lykke.Sdk;
 using Lykke.Sdk.Health;
 using Lykke.SettingsReader;
@@ -46,8 +45,6 @@ namespace Lykke.Service.TradeVolumes.Modules
                 .As<IShutdownManager>()
                 .AutoActivate()
                 .SingleInstance();
-
-            builder.RegisterResourcesMonitoring(_log);
 
             builder.Register(context => ConnectionMultiplexer.Connect(_settings.TradeVolumesService.RedisConnString))
                 .As<IConnectionMultiplexer>()
