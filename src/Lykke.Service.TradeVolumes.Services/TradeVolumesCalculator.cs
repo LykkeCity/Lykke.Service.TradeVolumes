@@ -232,7 +232,7 @@ namespace Lykke.Service.TradeVolumes.Services
                 var cachedVolumes = await _cachesManager.GetAssetPairTradeVolumeAsync(
                     assetPairId,
                     userId,
-                    DateTime.MinValue,
+                    hourStart,
                     timestamp,
                     true);
                 if (!cachedVolumes.Item1.HasValue || !cachedVolumes.Item2.HasValue)
@@ -256,7 +256,7 @@ namespace Lykke.Service.TradeVolumes.Services
                 cachedVolumes = await _cachesManager.GetAssetPairTradeVolumeAsync(
                     assetPairId,
                     walletId,
-                    DateTime.MinValue,
+                    hourStart,
                     timestamp,
                     false);
                 if (!cachedVolumes.Item1.HasValue || !cachedVolumes.Item2.HasValue)

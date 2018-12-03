@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Common;
+using Common.Log;
 using Lykke.Service.TradeVolumes.Core.Services;
 using Lykke.Service.TradeVolumes.Services.Models;
 using StackExchange.Redis;
@@ -17,10 +18,12 @@ namespace Lykke.Service.TradeVolumes.Services
         private const string _tradeIdAssetPairSetKeyPattern = "TradeVolumes:tradeIdHash:tradeId:{0}:userId:{1}";
 
         private readonly IDatabase _db;
+        private readonly ILog _log;
 
-        public CachesManager(IConnectionMultiplexer connectionMultiplexer)
+        public CachesManager(IConnectionMultiplexer connectionMultiplexer, ILog log)
         {
             _db = connectionMultiplexer.GetDatabase();
+            _log = log;
         }
 
         public async Task<(double?, double?)> GetAssetPairTradeVolumeAsync(
@@ -70,7 +73,10 @@ namespace Lykke.Service.TradeVolumes.Services
             (double, double) tradeVolumes)
         {
             if (!IsCahedPeriod(time))
+            {
+                _log.WriteInfo(nameof(AddAssetPairTradeVolumeAsync), tradeId, $"Timestamp {time} is out of cached period for {assetPairId}");
                 return;
+            }
 
             var tradeIdSetKey = string.Format(_tradeIdAssetPairSetKeyPattern, tradeId, userId);
             var tradeWallets = await _db.SetMembersAsync(tradeIdSetKey);
@@ -90,6 +96,7 @@ namespace Lykke.Service.TradeVolumes.Services
                     });
                     await _db.SortedSetRemoveAsync(userKey, suffix);
                     await _db.SortedSetRemoveAsync(walletKey, suffix);
+                    _log.WriteInfo(nameof(AddAssetPairTradeVolumeAsync), tradeId, $"Found trade for {assetPairId} with same user {userId} at {time}");
                     return;
                 }
             }
@@ -114,6 +121,9 @@ namespace Lykke.Service.TradeVolumes.Services
                 tx.SortedSetAddAsync(walletSetKey, tradeKeySuffix, time.Ticks),
             };
             TimeSpan ttl = time.AddMonths(1).Subtract(DateTime.UtcNow);
+            if (ttl.Ticks < 0)
+                _log.WriteWarning(nameof(AddAssetPairTradeVolumeAsync), tradeId, $"Got negative ttl for {time}");
+
             var userTradeKey = $"{userSetKey}:{tradeKeySuffix}";
             var userSetKeyTask = tx.StringSetAsync(userTradeKey, tradeVolumeJson, ttl);
             tasks.Add(userSetKeyTask);
@@ -128,6 +138,8 @@ namespace Lykke.Service.TradeVolumes.Services
                 throw new InvalidOperationException($"Error during trade volume adding for user {userId} on asset pair {assetPairId}");
             if (!walletSetKeyTask.Result)
                 throw new InvalidOperationException($"Error during trade volume adding for wallet {walletId} on asset pair {assetPairId}");
+
+            _log.WriteInfo(nameof(AddAssetPairTradeVolumeAsync), tradeId, $"Cached trade for {assetPairId} with user {userId} at {time}");
         }
 
         public async Task<DateTime> GetFirstCachedTimestampAsync(
