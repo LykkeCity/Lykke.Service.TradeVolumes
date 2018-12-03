@@ -5,7 +5,6 @@ using System.Collections.Concurrent;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Common.Log;
 using AzureStorage;
 using AzureStorage.Tables;
 using Lykke.Common.Log;
@@ -26,23 +25,11 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
 
         private readonly IReloadingManager<string> _connectionStringManager;
         private readonly IAssetsDictionary _assetsDictionary;
-        private readonly ILog _log;
         private readonly ILogFactory _logFactory;
         private readonly CloudTableClient _tableClient;
         private readonly TimeSpan _timeout = TimeSpan.FromMinutes(5);
         private readonly SemaphoreSlim _lock = new SemaphoreSlim(1, 1);
         private readonly ConcurrentDictionary<string, INoSQLTableStorage<TradeVolumeEntity>> _azureTables = new ConcurrentDictionary<string, INoSQLTableStorage<TradeVolumeEntity>>();
-
-        public TradeVolumesRepository(
-            IReloadingManager<string> connectionStringManager,
-            IAssetsDictionary assetsDictionary,
-            ILog log)
-        {
-            _connectionStringManager = connectionStringManager;
-            _assetsDictionary = assetsDictionary;
-            _log = log;
-            _tableClient = CloudStorageAccount.Parse(connectionStringManager.CurrentValue).CreateCloudTableClient();
-        }
 
         public TradeVolumesRepository(
             IReloadingManager<string> connectionStringManager,
@@ -269,9 +256,7 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
             List<double> tradeVolumes,
             bool isUser)
         {
-            var storage = _logFactory != null
-                ? AzureTableStorage<TradeVolumeEntity>.Create(_connectionStringManager, tableName, _logFactory, _timeout)
-                : AzureTableStorage<TradeVolumeEntity>.Create(_connectionStringManager, tableName, _log, _timeout);
+            var storage = AzureTableStorage<TradeVolumeEntity>.Create(_connectionStringManager, tableName, _logFactory, _timeout);
             (double tradeVolume, _) = await GetTableTradeVolumeAsync(
                 from,
                 to,
@@ -317,9 +302,7 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
             string tableName = string.Format(Constants.TableNameFormat, baseAssetId, quotingAssetId);
             if (_azureTables.TryGetValue(tableName, out var storage))
                 return storage;
-            var result = _logFactory != null
-                ? AzureTableStorage<TradeVolumeEntity>.Create(_connectionStringManager, tableName, _logFactory, _timeout)
-                : AzureTableStorage<TradeVolumeEntity>.Create(_connectionStringManager, tableName, _log, _timeout);
+            var result = AzureTableStorage<TradeVolumeEntity>.Create(_connectionStringManager, tableName, _logFactory, _timeout);
             _azureTables.TryAdd(tableName, result);
             return result;
         }

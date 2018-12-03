@@ -12,6 +12,7 @@ namespace Lykke.Job.TradeVolumes.Subscribers
 {
     internal class TradelogSubscriber : IStartStop
     {
+        private readonly ILogFactory _logFactory;
         private readonly ILog _log;
         private readonly string _connectionString;
         private readonly string _exchangeName;
@@ -21,23 +22,12 @@ namespace Lykke.Job.TradeVolumes.Subscribers
 
         public TradelogSubscriber(
             ITradeVolumesCalculator tradeVolumesCalculator,
-            ILog log,
-            string connectionString,
-            string exchangeName)
-        {
-            _tradeVolumesCalculator = tradeVolumesCalculator;
-            _log = log;
-            _connectionString = connectionString;
-            _exchangeName = exchangeName;
-        }
-
-        public TradelogSubscriber(
-            ITradeVolumesCalculator tradeVolumesCalculator,
             ILogFactory logFactory,
             string connectionString,
             string exchangeName)
         {
             _tradeVolumesCalculator = tradeVolumesCalculator;
+            _logFactory = logFactory;
             _log = logFactory.CreateLog(this);
             _connectionString = connectionString;
             _exchangeName = exchangeName;
@@ -49,15 +39,18 @@ namespace Lykke.Job.TradeVolumes.Subscribers
                 .ForSubscriber(_connectionString, _exchangeName, "tradevolumes")
                 .MakeDurable();
 
-            _subscriber = new RabbitMqSubscriber<List<TradeLogItem>>(settings,
-                    new ResilientErrorHandlingStrategy(_log, settings,
+            _subscriber = new RabbitMqSubscriber<List<TradeLogItem>>(
+                    _logFactory,
+                    settings,
+                    new ResilientErrorHandlingStrategy(
+                        _logFactory,
+                        settings,
                         retryTimeout: TimeSpan.FromSeconds(10),
-                        next: new DeadQueueErrorHandlingStrategy(_log, settings)))
+                        next: new DeadQueueErrorHandlingStrategy(_logFactory, settings)))
                 .SetMessageDeserializer(new MessagePackMessageDeserializer<List<TradeLogItem>>())
                 .SetMessageReadStrategy(new MessageReadQueueStrategy())
                 .Subscribe(ProcessMessageAsync)
                 .CreateDefaultBinding()
-                .SetLogger(_log)
                 .Start();
         }
 
@@ -69,7 +62,7 @@ namespace Lykke.Job.TradeVolumes.Subscribers
             }
             catch (Exception ex)
             {
-                _log.WriteError("TradelogSubscriber.ProcessMessageAsync", arg, ex);
+                _log.Error(ex, context: arg);
                 throw;
             }
         }

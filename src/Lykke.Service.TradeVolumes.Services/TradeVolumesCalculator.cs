@@ -26,20 +26,6 @@ namespace Lykke.Service.TradeVolumes.Services
             ICachesManager cachesManager,
             ITradeVolumesRepository tradeVolumesRepository,
             TimeSpan? warningDelay,
-            ILog log)
-        {
-            _assetsDictionary = assetsDictionary;
-            _tradeVolumesRepository = tradeVolumesRepository;
-            _log = log;
-            _cachesManager = cachesManager;
-            _warningDelay = warningDelay ?? TimeSpan.FromMinutes(60);
-        }
-
-        public TradeVolumesCalculator(
-            IAssetsDictionary assetsDictionary,
-            ICachesManager cachesManager,
-            ITradeVolumesRepository tradeVolumesRepository,
-            TimeSpan? warningDelay,
             ILogFactory logFactory)
         {
             _assetsDictionary = assetsDictionary;
@@ -131,7 +117,7 @@ namespace Lykke.Service.TradeVolumes.Services
             {
                 var missingDelay = dateTime.Subtract(_lastProcessedDate.Value);
                 if (missingDelay >= _warningDelay)
-                    _log.WriteWarning(nameof(AddTradeLogItemsAsync), null, $"Tradelog items are missing for {missingDelay.TotalMinutes} minutes");
+                    _log.Warning($"Tradelog items are missing for {missingDelay.TotalMinutes} minutes");
             }
 
             if (!_lastProcessedDate.HasValue || dateTime > _lastProcessedDate.Value)

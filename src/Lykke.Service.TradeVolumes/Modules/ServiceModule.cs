@@ -1,6 +1,5 @@
 ﻿using System;
 using Autofac;
-using Common.Log;
 using Lykke.Sdk;
 using Lykke.Sdk.Health;
 using Lykke.SettingsReader;
@@ -18,21 +17,15 @@ namespace Lykke.Service.TradeVolumes.Modules
     {
         private readonly IReloadingManager<AppSettings> _settingsManager;
         private readonly AppSettings _settings;
-        private readonly ILog _log;
 
-        public ServiceModule(IReloadingManager<AppSettings> settingsManager, ILog log)
+        public ServiceModule(IReloadingManager<AppSettings> settingsManager)
         {
             _settingsManager = settingsManager;
             _settings = settingsManager.CurrentValue;
-            _log = log;
         }
 
         protected override void Load(ContainerBuilder builder)
         {
-            builder.RegisterInstance(_log)
-                .As<ILog>()
-                .SingleInstance();
-
             builder.RegisterType<HealthService>()
                 .As<IHealthService>()
                 .SingleInstance();
