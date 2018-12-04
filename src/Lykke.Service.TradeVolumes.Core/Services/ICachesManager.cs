@@ -13,6 +13,7 @@ namespace Lykke.Service.TradeVolumes.Core.Services
             bool isUser);
         Task AddAssetPairTradeVolumeAsync(
             string assetPairId,
+            string assetId,
             string userId,
             string walletId,
             string tradeId,

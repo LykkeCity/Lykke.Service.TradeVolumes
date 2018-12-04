@@ -16,7 +16,7 @@ namespace Lykke.Service.TradeVolumes.Services
         private const string _userAssetPairTradesSetKeyPattern = "TradeVolumes:volumes:assetPairId:{0}:userId:{1}";
         private const string _walletAssetPairTradesSetKeyPattern = "TradeVolumes:volumes:assetPairId:{0}:walletId:{1}";
         private const string _tradeKeySuffixPattern = "ticks:{0}";
-        private const string _tradeIdAssetPairSetKeyPattern = "TradeVolumes:tradeIdHash:tradeId:{0}:userId:{1}";
+        private const string _tradeIdAssetPairSetKeyPattern = "TradeVolumes:tradeIdHash:tradeId:{0}:userId:{1}:assetId:{2}";
 
         private readonly IDatabase _db;
         private readonly ILog _log;
@@ -67,6 +67,7 @@ namespace Lykke.Service.TradeVolumes.Services
 
         public async Task AddAssetPairTradeVolumeAsync(
             string assetPairId,
+            string assetId,
             string userId,
             string walletId,
             string tradeId,
@@ -79,7 +80,7 @@ namespace Lykke.Service.TradeVolumes.Services
                 return;
             }
 
-            var tradeIdSetKey = string.Format(_tradeIdAssetPairSetKeyPattern, tradeId, userId);
+            var tradeIdSetKey = string.Format(_tradeIdAssetPairSetKeyPattern, tradeId, userId, assetId);
             var tradeWallets = await _db.SetMembersAsync(tradeIdSetKey);
             if (tradeWallets != null && tradeWallets.Length > 0)
             {

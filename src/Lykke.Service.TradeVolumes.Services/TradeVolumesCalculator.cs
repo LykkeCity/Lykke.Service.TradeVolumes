@@ -232,6 +232,7 @@ namespace Lykke.Service.TradeVolumes.Services
                         true);
                     await _cachesManager.AddAssetPairTradeVolumeAsync(
                         assetPairId,
+                        assetId,
                         userId,
                         walletId,
                         $"CacheWarmupBefore-{tradeId}",
@@ -256,6 +257,7 @@ namespace Lykke.Service.TradeVolumes.Services
                         false);
                     await _cachesManager.AddAssetPairTradeVolumeAsync(
                         assetPairId,
+                        assetId,
                         userId,
                         walletId,
                         $"CacheWarmupBefore-{tradeId}",
@@ -266,6 +268,7 @@ namespace Lykke.Service.TradeVolumes.Services
 
             await _cachesManager.AddAssetPairTradeVolumeAsync(
                 assetPairId,
+                assetId,
                 userId,
                 walletId,
                 tradeId,
