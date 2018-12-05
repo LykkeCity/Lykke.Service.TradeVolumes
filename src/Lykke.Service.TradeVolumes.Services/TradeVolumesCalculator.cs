@@ -6,6 +6,7 @@ using Common;
 using Common.Log;
 using Lykke.Common.Log;
 using Lykke.Job.TradesConverter.Contract;
+using Lykke.Service.TradeVolumes.Core;
 using Lykke.Service.TradeVolumes.Core.Services;
 using Lykke.Service.TradeVolumes.Core.Repositories;
 
@@ -83,7 +84,7 @@ namespace Lykke.Service.TradeVolumes.Services
                             processedItemsDict[item.TradeId] = item.WalletId;
                         }
 
-                        var volumesDict = await GetCurrentVolumes(
+                        var volumesDict = await GetCurrentVolumesAsync(
                             groupTime,
                             usersHash,
                             walletsHash,
@@ -137,28 +138,28 @@ namespace Lykke.Service.TradeVolumes.Services
 
             double baseResult = 0;
             double quotingReult = 0;
-            var cachedFrom = await _cachesManager.GetFirstCachedTimestampAsync(
-                assetPairId,
-                clientId,
-                from,
-                to,
-                isUser);
-            var roundedCachedFrom = cachedFrom.RoundToHour();
-            if (roundedCachedFrom != cachedFrom)
-                cachedFrom = roundedCachedFrom.AddHours(1);
-            if (cachedFrom < to)
+            if (clientId != Constants.AllClients)
             {
-                var cachedVolumes = await _cachesManager.GetAssetPairTradeVolumeAsync(
+                var cachedFrom = await _cachesManager.GetFirstCachedHourAsync(
                     assetPairId,
                     clientId,
-                    cachedFrom,
+                    from,
                     to,
                     isUser);
-                if (cachedVolumes.Item1.HasValue && cachedVolumes.Item2.HasValue)
+                if (cachedFrom < to)
                 {
-                    baseResult += cachedVolumes.Item1.Value;
-                    quotingReult += cachedVolumes.Item2.Value;
-                    to = cachedFrom;
+                    var cachedVolumes = await _cachesManager.GetAssetPairTradeVolumeAsync(
+                        assetPairId,
+                        clientId,
+                        cachedFrom,
+                        to,
+                        isUser);
+                    if (cachedVolumes.Item1.HasValue && cachedVolumes.Item2.HasValue)
+                    {
+                        baseResult += cachedVolumes.Item1.Value;
+                        quotingReult += cachedVolumes.Item2.Value;
+                        to = cachedFrom;
+                    }
                 }
             }
 
@@ -276,7 +277,7 @@ namespace Lykke.Service.TradeVolumes.Services
                 tradeVolumes);
         }
 
-        private async Task<Dictionary<string, double[]>> GetCurrentVolumes(
+        public async Task<Dictionary<string, double[]>> GetCurrentVolumesAsync(
             DateTime timestamp,
             ICollection<string> userIds,
             ICollection<string> walletIds,
@@ -295,6 +296,8 @@ namespace Lykke.Service.TradeVolumes.Services
                     hourStart,
                     hourEnd,
                     true);
+                if (userVolumes.Item1 == 0 || userVolumes.Item2 == 0)
+                    _log.WriteWarning(nameof(GetCurrentVolumesAsync), userVolumes, $"Got 0 volumes for pair {assetPairId} on user {userId} at {timestamp}");
                 result[_tradeVolumesRepository.GetUserVolumeKey(userId)] = isBaseAsset
                     ? new[] { userVolumes.Item1, userVolumes.Item2 }
                     : new[] { userVolumes.Item2, userVolumes.Item1 };
@@ -308,6 +311,8 @@ namespace Lykke.Service.TradeVolumes.Services
                     hourStart,
                     hourEnd,
                     false);
+                if (walletVolumes.Item1 == 0 || walletVolumes.Item2 == 0)
+                    _log.WriteWarning(nameof(GetCurrentVolumesAsync), walletVolumes, $"Got 0 volumes for pair {assetPairId} on wallet {walletId} at {timestamp}");
                 result[_tradeVolumesRepository.GetWalletVolumeKey(walletId)] = isBaseAsset
                     ? new[] { walletVolumes.Item1, walletVolumes.Item2 }
                     : new[] { walletVolumes.Item2, walletVolumes.Item1 };

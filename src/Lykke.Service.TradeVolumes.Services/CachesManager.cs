@@ -15,7 +15,7 @@ namespace Lykke.Service.TradeVolumes.Services
     {
         private const string _userAssetPairTradesSetKeyPattern = "TradeVolumes:volumes:assetPairId:{0}:userId:{1}";
         private const string _walletAssetPairTradesSetKeyPattern = "TradeVolumes:volumes:assetPairId:{0}:walletId:{1}";
-        private const string _tradeKeySuffixPattern = "ticks:{0}";
+        private const string _tradeKeySuffix = "ticks";
         private const string _tradeIdAssetPairSetKeyPattern = "TradeVolumes:tradeIdHash:tradeId:{0}:userId:{1}:assetId:{2}";
 
         private readonly IDatabase _db;
@@ -90,14 +90,18 @@ namespace Lykke.Service.TradeVolumes.Services
                 {
                     var userKey = string.Format(_userAssetPairTradesSetKeyPattern, assetPairId, userId);
                     var walletKey = string.Format(_walletAssetPairTradesSetKeyPattern, assetPairId, walletId);
-                    var suffix = string.Format(_tradeKeySuffixPattern, time.Ticks);
                     await _db.KeyDeleteAsync(new RedisKey[]
                     {
-                        $"{userKey}:{suffix}",
-                        $"{walletKey}:{suffix}",
+                        $"{userKey}:{_tradeKeySuffix}:{time.Ticks}",
+                        $"{walletKey}:{_tradeKeySuffix}:{time.Ticks}",
                     });
-                    await _db.SortedSetRemoveAsync(userKey, suffix);
-                    await _db.SortedSetRemoveAsync(walletKey, suffix);
+                    await _db.SortedSetRemoveAsync(userKey, time.Ticks);
+                    await _db.SortedSetRemoveAsync(walletKey, time.Ticks);
+
+                    //TODO remove this after stabilization
+                    await _db.SortedSetRemoveAsync(userKey, $"{_tradeKeySuffix}:{time.Ticks}");
+                    await _db.SortedSetRemoveAsync(walletKey, $"{_tradeKeySuffix}:{time.Ticks}");
+
                     _log.Info($"Found trade for {assetPairId} with same user {userId} at {time}", context: tradeId);
                     return;
                 }
@@ -112,24 +116,23 @@ namespace Lykke.Service.TradeVolumes.Services
                 QuotingVolume = Math.Abs(tradeVolumes.Item2),
             };
             string tradeVolumeJson = tradeVolume.ToJson();
-            var tradeKeySuffix = string.Format(_tradeKeySuffixPattern, time.Ticks);
 
             var tx = _db.CreateTransaction();
             var userSetKey = string.Format(_userAssetPairTradesSetKeyPattern, assetPairId, userId);
             var walletSetKey = string.Format(_walletAssetPairTradesSetKeyPattern, assetPairId, walletId);
             var tasks = new List<Task>
             {
-                tx.SortedSetAddAsync(userSetKey, tradeKeySuffix, time.Ticks),
-                tx.SortedSetAddAsync(walletSetKey, tradeKeySuffix, time.Ticks),
+                tx.SortedSetAddAsync(userSetKey, time.Ticks, time.Ticks),
+                tx.SortedSetAddAsync(walletSetKey, time.Ticks, time.Ticks),
             };
             TimeSpan ttl = time.AddMonths(1).Subtract(DateTime.UtcNow);
             if (ttl.Ticks < 0)
                 _log.Warning($"Got negative ttl for {time}", context: tradeId);
 
-            var userTradeKey = $"{userSetKey}:{tradeKeySuffix}";
+            var userTradeKey = $"{userSetKey}:{_tradeKeySuffix}:{time.Ticks}";
             var userSetKeyTask = tx.StringSetAsync(userTradeKey, tradeVolumeJson, ttl);
             tasks.Add(userSetKeyTask);
-            var walletTradeKey = $"{walletSetKey}:{tradeKeySuffix}";
+            var walletTradeKey = $"{walletSetKey}:{_tradeKeySuffix}:{time.Ticks}";
             var walletSetKeyTask = tx.StringSetAsync(walletTradeKey, tradeVolumeJson, ttl);
             tasks.Add(walletSetKeyTask);
 
@@ -144,29 +147,40 @@ namespace Lykke.Service.TradeVolumes.Services
             _log.Info($"Cached trade for {assetPairId} with user {userId} at {time}", context: tradeId);
         }
 
-        public async Task<DateTime> GetFirstCachedTimestampAsync(
+        public async Task<DateTime> GetFirstCachedHourAsync(
             string assetPairId,
             string clientId,
-            DateTime from,
-            DateTime to,
+            DateTime hourFrom,
+            DateTime hourTo,
             bool isUser)
         {
-            if (!IsCahedPeriod(from))
-                return to;
+            if (!IsCahedPeriod(hourFrom))
+                return hourTo;
 
             var setKey = string.Format(
                 isUser ? _userAssetPairTradesSetKeyPattern : _walletAssetPairTradesSetKeyPattern,
                 assetPairId,
                 clientId);
 
-            var setItems = await _db.SortedSetRangeByScoreAsync(setKey, from.Ticks, to.Ticks);
-            var resultItem = setItems?.FirstOrDefault(i => i.HasValue);
-            if (!resultItem.HasValue || resultItem.ToString() == null)
-                return to;
+            var setItems = await _db.SortedSetRangeByScoreAsync(setKey, double.MinValue, hourTo.Ticks);
+            if (setItems == null || setItems.Length == 0)
+                return hourTo;
 
-            var parts = resultItem.ToString().Split(':', StringSplitOptions.RemoveEmptyEntries);
-            long ticks = long.Parse(parts[parts.Length - 1]);
-            return new DateTime(ticks);
+            var firstCachedTicks = setItems
+                .Where(i => i.ToString() != null)
+                .Select(i =>
+                {
+                    var strVal = i.ToString();
+                    if (long.TryParse(strVal, out long ticksVal))
+                        return ticksVal;
+                    var parts = strVal.Split(':', StringSplitOptions.RemoveEmptyEntries);
+                    return long.Parse(parts[parts.Length - 1]);
+                })
+                .FirstOrDefault();
+
+            return firstCachedTicks == 0 || firstCachedTicks > hourFrom.Ticks
+                ? hourTo
+                : hourFrom;
         }
 
         private bool IsCahedPeriod(DateTime from)
@@ -195,7 +209,7 @@ namespace Lykke.Service.TradeVolumes.Services
                 return new RedisKey[0];
 
             return getKeysTask.Result?
-                .Select(i => (RedisKey)$"{setKey}:{i.ToString()}")
+                .Select(i => (RedisKey)$"{setKey}:{_tradeKeySuffix}:{i.ToString()}")
                 .ToArray();
         }
     }

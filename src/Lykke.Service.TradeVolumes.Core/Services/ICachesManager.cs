@@ -19,7 +19,7 @@ namespace Lykke.Service.TradeVolumes.Core.Services
             string tradeId,
             DateTime time,
             (double, double) tradeVolumes);
-        Task<DateTime> GetFirstCachedTimestampAsync(
+        Task<DateTime> GetFirstCachedHourAsync(
             string assetPairId,
             string clientId,
             DateTime from,

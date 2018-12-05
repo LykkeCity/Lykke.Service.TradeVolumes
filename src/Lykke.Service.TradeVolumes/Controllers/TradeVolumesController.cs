@@ -94,7 +94,7 @@ namespace Lykke.Service.TradeVolumes.Controllers
             {
                 try
                 {
-                    (double baseVolume, double quotingVolume) = await GetPeriodAssetPairTradeVolume(
+                    (double baseVolume, double quotingVolume) = await GetPeriodAssetPairTradeVolumeAsync(
                         assetPairId,
                         Constants.AllClients,
                         fromDate,
@@ -150,7 +150,7 @@ namespace Lykke.Service.TradeVolumes.Controllers
 
             try
             {
-                double tradeVolume = await GetPeriodAssetTradeVolume(
+                double tradeVolume = await GetPeriodAssetTradeVolumeAsync(
                     assetId,
                     clientId,
                     fromDate,
@@ -198,7 +198,7 @@ namespace Lykke.Service.TradeVolumes.Controllers
 
             try
             {
-                (double baseVolume, double quotingVolume) = await GetPeriodAssetPairTradeVolume(
+                (double baseVolume, double quotingVolume) = await GetPeriodAssetPairTradeVolumeAsync(
                     assetPairId,
                     clientId,
                     fromDate,
@@ -247,7 +247,7 @@ namespace Lykke.Service.TradeVolumes.Controllers
 
             try
             {
-                double tradeVolume = await GetPeriodAssetTradeVolume(
+                double tradeVolume = await GetPeriodAssetTradeVolumeAsync(
                     assetId,
                     walletId,
                     fromDate,
@@ -295,7 +295,7 @@ namespace Lykke.Service.TradeVolumes.Controllers
 
             try
             {
-                (double baseVolume, double quotingVolume) = await GetPeriodAssetPairTradeVolume(
+                (double baseVolume, double quotingVolume) = await GetPeriodAssetPairTradeVolumeAsync(
                     assetPairId,
                     walletId,
                     fromDate,
@@ -317,7 +317,38 @@ namespace Lykke.Service.TradeVolumes.Controllers
             }
         }
 
-        private async Task<double> GetPeriodAssetTradeVolume(
+        /// <summary>
+        /// Calculates trade volume of assetId within specified time period.
+        /// </summary>
+        [HttpGet("pair/{assetPairId}/time/{timestamp}/userId/{userId}/walletId/{walletId}")]
+        [SwaggerOperation("GetCurrentVolumes")]
+        [ProducesResponseType(typeof(AssetTradeVolumeResponse), (int)HttpStatusCode.OK)]
+        public async Task<IActionResult> GetCurrentVolumes(
+            string assetPairId,
+            DateTime timestamp,
+            string userId,
+            string walletId)
+        {
+            if (timestamp.Kind != DateTimeKind.Utc)
+                timestamp = timestamp.ToUniversalTime();
+
+            var curVolumes = await _tradeVolumesCalculator.GetCurrentVolumesAsync(
+                timestamp,
+                new[] {userId},
+                new[] {walletId},
+                assetPairId,
+                true);
+            return Ok(
+                new AssetPairTradeVolumeResponse
+                {
+                    AssetPairId = assetPairId,
+                    WalletId = walletId,
+                    BaseVolume = curVolumes[userId][0],
+                    QuotingVolume = curVolumes[userId][1],
+                });
+        }
+
+        private async Task<double> GetPeriodAssetTradeVolumeAsync(
             string assetId,
             string id,
             DateTime fromDate,
@@ -347,7 +378,7 @@ namespace Lykke.Service.TradeVolumes.Controllers
             return result;
         }
 
-        private async Task<(double, double)> GetPeriodAssetPairTradeVolume(
+        private async Task<(double, double)> GetPeriodAssetPairTradeVolumeAsync(
             string assetPairId,
             string id,
             DateTime fromDate,
