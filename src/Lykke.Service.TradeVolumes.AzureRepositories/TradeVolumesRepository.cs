@@ -5,16 +5,16 @@ using System.Collections.Concurrent;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.WindowsAzure.Storage;
-using Microsoft.WindowsAzure.Storage.Table;
-using Common.Log;
 using AzureStorage;
 using AzureStorage.Tables;
+using Lykke.Common.Log;
 using Lykke.SettingsReader;
 using Lykke.Service.TradeVolumes.Core;
 using Lykke.Service.TradeVolumes.Core.Services;
 using Lykke.Service.TradeVolumes.Core.Repositories;
 using Lykke.Service.TradeVolumes.AzureRepositories.Models;
+using Microsoft.WindowsAzure.Storage;
+using Microsoft.WindowsAzure.Storage.Table;
 
 namespace Lykke.Service.TradeVolumes.AzureRepositories
 {
@@ -25,7 +25,7 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
 
         private readonly IReloadingManager<string> _connectionStringManager;
         private readonly IAssetsDictionary _assetsDictionary;
-        private readonly ILog _log;
+        private readonly ILogFactory _logFactory;
         private readonly CloudTableClient _tableClient;
         private readonly TimeSpan _timeout = TimeSpan.FromMinutes(5);
         private readonly SemaphoreSlim _lock = new SemaphoreSlim(1, 1);
@@ -34,11 +34,11 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
         public TradeVolumesRepository(
             IReloadingManager<string> connectionStringManager,
             IAssetsDictionary assetsDictionary,
-            ILog log)
+            ILogFactory logFactory)
         {
             _connectionStringManager = connectionStringManager;
             _assetsDictionary = assetsDictionary;
-            _log = log;
+            _logFactory = logFactory;
             _tableClient = CloudStorageAccount.Parse(connectionStringManager.CurrentValue).CreateCloudTableClient();
         }
 
@@ -127,21 +127,17 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
             {
                 string userRowKey = TradeVolumeEntity.ByUser.GenerateRowKey(userId);
                 var userTradeVolume = itemsDict.ContainsKey(userRowKey) ? itemsDict[userRowKey] : null;
-                double baseVolume = userTradeVolume != null && userTradeVolume.BaseVolume.HasValue
-                    ? userTradeVolume.BaseVolume.Value : 0;
-                double quotingVolume = userTradeVolume != null && userTradeVolume.QuotingVolume.HasValue
-                    ? userTradeVolume.QuotingVolume.Value : 0;
-                result.Add(GetUserVolumeKey(userId), new double[2] { baseVolume, quotingVolume });
+                double baseVolume = userTradeVolume?.BaseVolume ?? 0;
+                double quotingVolume = userTradeVolume?.QuotingVolume ?? 0;
+                result.Add(GetUserVolumeKey(userId), new[] { baseVolume, quotingVolume });
             }
             foreach (var walletId in walletIds)
             {
                 string walletRowKey = TradeVolumeEntity.ByWallet.GenerateRowKey(walletId);
                 var walletTradeVolume = itemsDict.ContainsKey(walletRowKey) ? itemsDict[walletRowKey] : null;
-                double baseVolume = walletTradeVolume != null && walletTradeVolume.BaseVolume.HasValue
-                    ? walletTradeVolume.BaseVolume.Value : 0;
-                double quotingVolume = walletTradeVolume != null && walletTradeVolume.QuotingVolume.HasValue
-                    ? walletTradeVolume.QuotingVolume.Value : 0;
-                result.Add(GetWalletVolumeKey(walletId), new double[2] { baseVolume, quotingVolume });
+                double baseVolume = walletTradeVolume?.BaseVolume ?? 0;
+                double quotingVolume = walletTradeVolume?.QuotingVolume ?? 0;
+                result.Add(GetWalletVolumeKey(walletId), new[] { baseVolume, quotingVolume });
             }
             return result;
         }
@@ -164,7 +160,6 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
             DateTime to,
             bool isUser)
         {
-            var tradeVolumes = new List<double>();
             if (quotingAssetId == null)
             {
                 double result = await GetAssetTradeVolumeAsync(
@@ -217,8 +212,8 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
             double baseResult = 0, quotingResult = 0;
             foreach (var item in items)
             {
-                baseResult += item.BaseVolume.HasValue ? item.BaseVolume.Value : 0;
-                quotingResult += item.QuotingVolume.HasValue ? item.QuotingVolume.Value : 0;
+                baseResult += item.BaseVolume ?? 0;
+                quotingResult += item.QuotingVolume ?? 0;
             }
             if (clientId == Constants.AllClients)
             {
@@ -261,11 +256,7 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
             List<double> tradeVolumes,
             bool isUser)
         {
-            var storage = AzureTableStorage<TradeVolumeEntity>.Create(
-                _connectionStringManager,
-                tableName,
-                _log,
-                _timeout);
+            var storage = AzureTableStorage<TradeVolumeEntity>.Create(_connectionStringManager, tableName, _logFactory, _timeout);
             (double tradeVolume, _) = await GetTableTradeVolumeAsync(
                 from,
                 to,
@@ -311,11 +302,7 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
             string tableName = string.Format(Constants.TableNameFormat, baseAssetId, quotingAssetId);
             if (_azureTables.TryGetValue(tableName, out var storage))
                 return storage;
-            var result = AzureTableStorage<TradeVolumeEntity>.Create(
-                _connectionStringManager,
-                tableName,
-                _log,
-                _timeout);
+            var result = AzureTableStorage<TradeVolumeEntity>.Create(_connectionStringManager, tableName, _logFactory, _timeout);
             _azureTables.TryAdd(tableName, result);
             return result;
         }

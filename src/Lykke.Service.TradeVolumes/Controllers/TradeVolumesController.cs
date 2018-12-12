@@ -2,14 +2,15 @@
 using System.Collections.Generic;
 using System.Net;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Mvc;
-using Swashbuckle.AspNetCore.SwaggerGen;
 using Common;
 using Common.Log;
 using Lykke.Common.Api.Contract.Responses;
+using Lykke.Common.Log;
 using Lykke.Service.TradeVolumes.Core;
 using Lykke.Service.TradeVolumes.Core.Services;
 using Lykke.Service.TradeVolumes.Models;
+using Microsoft.AspNetCore.Mvc;
+using Swashbuckle.AspNetCore.SwaggerGen;
 
 namespace Lykke.Service.TradeVolumes.Controllers
 {
@@ -19,10 +20,10 @@ namespace Lykke.Service.TradeVolumes.Controllers
         private readonly ITradeVolumesCalculator _tradeVolumesCalculator;
         private readonly ILog _log;
 
-        public TradeVolumesController(ITradeVolumesCalculator tradeVolumesCalculator, ILog log)
+        public TradeVolumesController(ITradeVolumesCalculator tradeVolumesCalculator, ILogFactory logFactory)
         {
             _tradeVolumesCalculator = tradeVolumesCalculator;
-            _log = log;
+            _log = logFactory.CreateLog(this);
         }
 
         /// <summary>
@@ -82,14 +83,10 @@ namespace Lykke.Service.TradeVolumes.Controllers
             [FromRoute]DateTime toDate)
         {
             if (assetPairIds == null || assetPairIds.Length == 0)
-                return StatusCode(
-                    (int)HttpStatusCode.BadRequest,
-                    ErrorResponse.Create("AssetPairIds parameter is empty"));
+                return StatusCode((int)HttpStatusCode.BadRequest, ErrorResponse.Create("AssetPairIds parameter is empty"));
 
             if (fromDate >= toDate)
-                return StatusCode(
-                    (int)HttpStatusCode.BadRequest,
-                    ErrorResponse.Create("fromDate must be earlier than toDate"));
+                return StatusCode((int)HttpStatusCode.BadRequest, ErrorResponse.Create("fromDate must be earlier than toDate"));
 
             var result = new List<AssetPairTradeVolumeResponse>();
 
@@ -97,7 +94,7 @@ namespace Lykke.Service.TradeVolumes.Controllers
             {
                 try
                 {
-                    (double baseVolume, double quotingVolume) = await GetPeriodAssetPairTradeVolume(
+                    (double baseVolume, double quotingVolume) = await GetPeriodAssetPairTradeVolumeAsync(
                         assetPairId,
                         Constants.AllClients,
                         fromDate,
@@ -115,19 +112,11 @@ namespace Lykke.Service.TradeVolumes.Controllers
                 }
                 catch (UnknownPairException ex)
                 {
-                    _log.WriteWarning(
-                        nameof(GetPeriodAssetPairsTradeVolume),
-                        new { AssetPairId = assetPairId, FromDate = fromDate, ToDate = toDate},
-                        ex.Message,
-                        ex);
+                    _log.Warning(ex.Message, ex, new { AssetPairId = assetPairId, FromDate = fromDate, ToDate = toDate });
                 }
                 catch (UnknownAssetException ex)
                 {
-                    _log.WriteWarning(
-                        nameof(GetPeriodAssetPairsTradeVolume),
-                        new { AssetPairId = assetPairId, FromDate = fromDate, ToDate = toDate },
-                        ex.Message,
-                        ex);
+                    _log.Warning(ex.Message, ex, new { AssetPairId = assetPairId, FromDate = fromDate, ToDate = toDate });
                 }
             }
 
@@ -151,22 +140,17 @@ namespace Lykke.Service.TradeVolumes.Controllers
             DateTime toDate)
         {
             if (string.IsNullOrWhiteSpace(assetId))
-                return StatusCode(
-                    (int)HttpStatusCode.BadRequest,
-                    ErrorResponse.Create("AssetId parameter is empty"));
+                return StatusCode((int)HttpStatusCode.BadRequest, ErrorResponse.Create("AssetId parameter is empty"));
 
             if (string.IsNullOrWhiteSpace(clientId))
-                return StatusCode(
-                    (int)HttpStatusCode.BadRequest,
-                    ErrorResponse.Create("ClientId parameter is empty"));
+                return StatusCode((int)HttpStatusCode.BadRequest, ErrorResponse.Create("ClientId parameter is empty"));
 
             if (fromDate >= toDate)
-                return StatusCode(
-                    (int)HttpStatusCode.BadRequest,
-                    ErrorResponse.Create($"fromDate must be earlier than toDate"));
+                return StatusCode((int)HttpStatusCode.BadRequest, ErrorResponse.Create($"fromDate must be earlier than toDate"));
+
             try
             {
-                double tradeVolume = await GetPeriodAssetTradeVolume(
+                double tradeVolume = await GetPeriodAssetTradeVolumeAsync(
                     assetId,
                     clientId,
                     fromDate,
@@ -183,9 +167,7 @@ namespace Lykke.Service.TradeVolumes.Controllers
             }
             catch (UnknownAssetException ex)
             {
-                return StatusCode(
-                    (int)HttpStatusCode.BadRequest,
-                    ErrorResponse.Create(ex.Message));
+                return StatusCode((int)HttpStatusCode.BadRequest, ErrorResponse.Create(ex.Message));
             }
         }
 
@@ -206,23 +188,17 @@ namespace Lykke.Service.TradeVolumes.Controllers
             DateTime toDate)
         {
             if (string.IsNullOrWhiteSpace(assetPairId))
-                return StatusCode(
-                    (int)HttpStatusCode.BadRequest,
-                    ErrorResponse.Create("AssetPairId parameter is empty"));
+                return StatusCode((int)HttpStatusCode.BadRequest, ErrorResponse.Create("AssetPairId parameter is empty"));
 
             if (string.IsNullOrWhiteSpace(clientId))
-                return StatusCode(
-                    (int)HttpStatusCode.BadRequest,
-                    ErrorResponse.Create("ClientId parameter is empty"));
+                return StatusCode((int)HttpStatusCode.BadRequest, ErrorResponse.Create("ClientId parameter is empty"));
 
             if (fromDate >= toDate)
-                return StatusCode(
-                    (int)HttpStatusCode.BadRequest,
-                    ErrorResponse.Create($"fromDate must be earlier than toDate"));
+                return StatusCode((int)HttpStatusCode.BadRequest, ErrorResponse.Create($"fromDate must be earlier than toDate"));
 
             try
             {
-                (double baseVolume, double quotingVolume) = await GetPeriodAssetPairTradeVolume(
+                (double baseVolume, double quotingVolume) = await GetPeriodAssetPairTradeVolumeAsync(
                     assetPairId,
                     clientId,
                     fromDate,
@@ -240,9 +216,7 @@ namespace Lykke.Service.TradeVolumes.Controllers
             }
             catch (Exception ex) when (ex is UnknownPairException || ex is UnknownAssetException)
             {
-                return StatusCode(
-                    (int)HttpStatusCode.BadRequest,
-                    ErrorResponse.Create(ex.Message));
+                return StatusCode((int)HttpStatusCode.BadRequest, ErrorResponse.Create(ex.Message));
             }
         }
 
@@ -263,23 +237,17 @@ namespace Lykke.Service.TradeVolumes.Controllers
             DateTime toDate)
         {
             if (string.IsNullOrWhiteSpace(assetId))
-                return StatusCode(
-                    (int)HttpStatusCode.BadRequest,
-                    ErrorResponse.Create("AssetId parameter is empty"));
+                return StatusCode((int)HttpStatusCode.BadRequest, ErrorResponse.Create("AssetId parameter is empty"));
 
             if (string.IsNullOrWhiteSpace(walletId))
-                return StatusCode(
-                    (int)HttpStatusCode.BadRequest,
-                    ErrorResponse.Create("WalletId parameter is empty"));
+                return StatusCode((int)HttpStatusCode.BadRequest, ErrorResponse.Create("WalletId parameter is empty"));
 
             if (fromDate >= toDate)
-                return StatusCode(
-                    (int)HttpStatusCode.BadRequest,
-                    ErrorResponse.Create($"fromDate must be earlier than toDate"));
+                return StatusCode((int)HttpStatusCode.BadRequest, ErrorResponse.Create($"fromDate must be earlier than toDate"));
 
             try
             {
-                double tradeVolume = await GetPeriodAssetTradeVolume(
+                double tradeVolume = await GetPeriodAssetTradeVolumeAsync(
                     assetId,
                     walletId,
                     fromDate,
@@ -296,9 +264,7 @@ namespace Lykke.Service.TradeVolumes.Controllers
             }
             catch (UnknownAssetException ex)
             {
-                return StatusCode(
-                    (int)HttpStatusCode.BadRequest,
-                    ErrorResponse.Create(ex.Message));
+                return StatusCode((int)HttpStatusCode.BadRequest, ErrorResponse.Create(ex.Message));
             }
         }
 
@@ -319,23 +285,17 @@ namespace Lykke.Service.TradeVolumes.Controllers
             DateTime toDate)
         {
             if (string.IsNullOrWhiteSpace(assetPairId))
-                return StatusCode(
-                    (int)HttpStatusCode.BadRequest,
-                    ErrorResponse.Create("AssetPairId parameter is empty"));
+                return StatusCode((int)HttpStatusCode.BadRequest, ErrorResponse.Create("AssetPairId parameter is empty"));
 
             if (string.IsNullOrWhiteSpace(walletId))
-                return StatusCode(
-                    (int)HttpStatusCode.BadRequest,
-                    ErrorResponse.Create("WalletId parameter is empty"));
+                return StatusCode((int)HttpStatusCode.BadRequest, ErrorResponse.Create("WalletId parameter is empty"));
 
             if (fromDate >= toDate)
-                return StatusCode(
-                    (int)HttpStatusCode.BadRequest,
-                    ErrorResponse.Create($"fromDate must be earlier than toDate"));
+                return StatusCode((int)HttpStatusCode.BadRequest, ErrorResponse.Create($"fromDate must be earlier than toDate"));
 
             try
             {
-                (double baseVolume, double quotingVolume) = await GetPeriodAssetPairTradeVolume(
+                (double baseVolume, double quotingVolume) = await GetPeriodAssetPairTradeVolumeAsync(
                     assetPairId,
                     walletId,
                     fromDate,
@@ -353,13 +313,42 @@ namespace Lykke.Service.TradeVolumes.Controllers
             }
             catch (Exception ex) when (ex is UnknownPairException || ex is UnknownAssetException)
             {
-                return StatusCode(
-                    (int)HttpStatusCode.BadRequest,
-                    ErrorResponse.Create(ex.Message));
+                return StatusCode((int)HttpStatusCode.BadRequest, ErrorResponse.Create(ex.Message));
             }
         }
 
-        private async Task<double> GetPeriodAssetTradeVolume(
+        /// <summary>
+        /// Calculates trade volume of assetId within specified time period.
+        /// </summary>
+        [HttpGet("pair/{assetPairId}/time/{timestamp}/userId/{userId}/walletId/{walletId}")]
+        [SwaggerOperation("GetCurrentVolumes")]
+        [ProducesResponseType(typeof(AssetTradeVolumeResponse), (int)HttpStatusCode.OK)]
+        public async Task<IActionResult> GetCurrentVolumes(
+            string assetPairId,
+            DateTime timestamp,
+            string userId,
+            string walletId)
+        {
+            if (timestamp.Kind != DateTimeKind.Utc)
+                timestamp = timestamp.ToUniversalTime();
+
+            var curVolumes = await _tradeVolumesCalculator.GetCurrentVolumesAsync(
+                timestamp,
+                new[] {userId},
+                new[] {walletId},
+                assetPairId,
+                true);
+            return Ok(
+                new AssetPairTradeVolumeResponse
+                {
+                    AssetPairId = assetPairId,
+                    WalletId = walletId,
+                    BaseVolume = curVolumes[userId][0],
+                    QuotingVolume = curVolumes[userId][1],
+                });
+        }
+
+        private async Task<double> GetPeriodAssetTradeVolumeAsync(
             string assetId,
             string id,
             DateTime fromDate,
@@ -389,7 +378,7 @@ namespace Lykke.Service.TradeVolumes.Controllers
             return result;
         }
 
-        private async Task<(double, double)> GetPeriodAssetPairTradeVolume(
+        private async Task<(double, double)> GetPeriodAssetPairTradeVolumeAsync(
             string assetPairId,
             string id,
             DateTime fromDate,

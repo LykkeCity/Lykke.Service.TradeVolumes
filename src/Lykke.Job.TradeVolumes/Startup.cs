@@ -3,38 +3,48 @@ using System.Threading.Tasks;
 using Autofac;
 using Autofac.Extensions.DependencyInjection;
 using Common.Log;
-using Lykke.SettingsReader;
+using JetBrains.Annotations;
 using Lykke.Common;
+using Lykke.Common.Api.Contract.Responses;
 using Lykke.Common.ApiLibrary.Middleware;
 using Lykke.Common.ApiLibrary.Swagger;
 using Lykke.Common.Log;
+using Lykke.Job.TradeVolumes.Modules;
+using Lykke.Job.TradeVolumes.Settings;
 using Lykke.Logs;
 using Lykke.MonitoringServiceApiCaller;
 using Lykke.Sdk;
-using Lykke.Service.TradeVolumes.Modules;
-using Lykke.Service.TradeVolumes.Settings;
+using Lykke.SettingsReader;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Newtonsoft.Json.Converters;
 
-namespace Lykke.Service.TradeVolumes
+namespace Lykke.Job.TradeVolumes
 {
+    [PublicAPI]
     public class Startup
     {
+        private const string ApiVersion = "v1";
+        private const string ApiName = "TradeVolumesJob API";
+
         private string _monitoringServiceUrl;
+        private ILog _log;
         private IHealthNotifier _healthNotifier;
 
+        public IHostingEnvironment Environment { get; }
         public IContainer ApplicationContainer { get; private set; }
         public IConfigurationRoot Configuration { get; }
-        public ILog Log { get; private set; }
 
         public Startup(IHostingEnvironment env)
         {
             var builder = new ConfigurationBuilder()
                 .SetBasePath(env.ContentRootPath)
                 .AddEnvironmentVariables();
+
             Configuration = builder.Build();
+            Environment = env;
         }
 
         public IServiceProvider ConfigureServices(IServiceCollection services)
@@ -44,45 +54,52 @@ namespace Lykke.Service.TradeVolumes
                 services.AddMvc()
                     .AddJsonOptions(options =>
                     {
-                        options.SerializerSettings.ContractResolver =
-                            new Newtonsoft.Json.Serialization.DefaultContractResolver();
+                        options.SerializerSettings.Converters.Add(new StringEnumConverter());
+                        options.SerializerSettings.ContractResolver = new Newtonsoft.Json.Serialization.DefaultContractResolver();
                     });
 
                 services.AddSwaggerGen(options =>
                 {
-                    options.DefaultLykkeConfiguration("v1", "TradeVolumes API");
+                    options.DefaultLykkeConfiguration(ApiVersion, ApiName);
                 });
 
-                var builder = new ContainerBuilder();
-                var settingsManager = Configuration.LoadSettings<AppSettings>(o =>
+                var settingsManager = Configuration.LoadSettings<AppSettings>(options =>
                 {
-                    o.SetConnString(s => s.SlackNotifications.AzureQueue.ConnectionString);
-                    o.SetQueueName(s => s.SlackNotifications.AzureQueue.QueueName);
-                    o.SenderName = $"{AppEnvironment.Name} {AppEnvironment.Version}";
+                    options.SetConnString(x => x.SlackNotifications.AzureQueue.ConnectionString);
+                    options.SetQueueName(x => x.SlackNotifications.AzureQueue.QueueName);
+                    options.SenderName = $"{AppEnvironment.Name} {AppEnvironment.Version}";
                 });
 
                 var appSettings = settingsManager.CurrentValue;
-                _monitoringServiceUrl = appSettings.MonitoringServiceClient.MonitoringServiceUrl;
+
+                if (appSettings.MonitoringServiceClient != null)
+                    _monitoringServiceUrl = appSettings.MonitoringServiceClient.MonitoringServiceUrl;
 
                 services.AddLykkeLogging(
-                    settingsManager.ConnectionString(s => s.TradeVolumesService.LogsConnString),
-                    "TradeVolumesLog",
+                    settingsManager.ConnectionString(s => s.TradeVolumesJob.Db.LogsConnString),
+                    "TradeVolumesJobLog",
                     appSettings.SlackNotifications.AzureQueue.ConnectionString,
                     appSettings.SlackNotifications.AzureQueue.QueueName);
 
-                builder.RegisterModule(new ServiceModule(settingsManager));
+                var builder = new ContainerBuilder();
                 builder.Populate(services);
+
+                builder.RegisterModule(new JobModule(appSettings, settingsManager.Nested(x => x.TradeVolumesJob)));
+
                 ApplicationContainer = builder.Build();
 
                 var logFactory = ApplicationContainer.Resolve<ILogFactory>();
-                Log = logFactory.CreateLog(this);
+                _log = logFactory.CreateLog(this);
                 _healthNotifier = ApplicationContainer.Resolve<IHealthNotifier>();
 
                 return new AutofacServiceProvider(ApplicationContainer);
             }
             catch (Exception ex)
             {
-                Log?.Critical(ex);
+                if (_log == null)
+                    Console.WriteLine(ex);
+                else
+                    _log.Critical(ex);
                 throw;
             }
         }
@@ -94,7 +111,8 @@ namespace Lykke.Service.TradeVolumes
                 if (env.IsDevelopment())
                     app.UseDeveloperExceptionPage();
 
-                app.UseLykkeMiddleware(ex => new { Message = "Technical problem" });
+                app.UseLykkeForwardedHeaders();
+                app.UseLykkeMiddleware(ex => new ErrorResponse { ErrorMessage = "Technical problem" });
 
                 app.UseMvc();
                 app.UseSwagger(c =>
@@ -104,7 +122,7 @@ namespace Lykke.Service.TradeVolumes
                 app.UseSwaggerUI(x =>
                 {
                     x.RoutePrefix = "swagger/ui";
-                    x.SwaggerEndpoint("/swagger/v1/swagger.json", "v1");
+                    x.SwaggerEndpoint($"/swagger/{ApiVersion}/swagger.json", ApiVersion);
                 });
                 app.UseStaticFiles();
 
@@ -114,7 +132,7 @@ namespace Lykke.Service.TradeVolumes
             }
             catch (Exception ex)
             {
-                Log?.Critical(ex);
+                _log?.Critical(ex);
                 throw;
             }
         }
@@ -123,19 +141,18 @@ namespace Lykke.Service.TradeVolumes
         {
             try
             {
-                // NOTE: Service not yet recieve and process requests here
-                _healthNotifier.Notify("Initializing");
+                // NOTE: Job not yet recieve and process IsAlive requests here
 
                 await ApplicationContainer.Resolve<IStartupManager>().StartAsync();
+                _healthNotifier.Notify("Started", Program.EnvInfo);
 
-                _healthNotifier.Notify("Started");
-#if (!DEBUG)
-                await AutoRegistrationInMonitoring.RegisterAsync(Configuration, _monitoringServiceUrl, Log);
+#if !DEBUG
+                await Configuration.RegisterInMonitoringServiceAsync(_monitoringServiceUrl, _healthNotifier);
 #endif
             }
             catch (Exception ex)
             {
-                Log.Critical(ex);
+                _log.Critical(ex);
                 throw;
             }
         }
@@ -144,13 +161,13 @@ namespace Lykke.Service.TradeVolumes
         {
             try
             {
-                // NOTE: Service still can recieve and process requests here, so take care about it if you add logic here.
+                // NOTE: Job still can recieve and process IsAlive requests here, so take care about it if you add logic here.
 
                 await ApplicationContainer.Resolve<IShutdownManager>().StopAsync();
             }
             catch (Exception ex)
             {
-                Log?.Critical(ex);
+                _log?.Critical(ex);
                 throw;
             }
         }
@@ -159,19 +176,14 @@ namespace Lykke.Service.TradeVolumes
         {
             try
             {
-                // NOTE: Service can't recieve and process requests here, so you can destroy all resources
-
-                _healthNotifier?.Notify("Terminating");
+                // NOTE: Job can't recieve and process IsAlive requests here, so you can destroy all resources
+                _healthNotifier?.Notify("Terminating", Program.EnvInfo);
 
                 ApplicationContainer.Dispose();
             }
             catch (Exception ex)
             {
-                if (Log != null)
-                {
-                    Log.Critical(ex);
-                    (Log as IDisposable)?.Dispose();
-                }
+                _log?.Critical(ex);
                 throw;
             }
         }

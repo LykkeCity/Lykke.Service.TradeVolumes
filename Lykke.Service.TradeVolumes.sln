@@ -29,6 +29,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Lykke.Service.TradeVolumes.
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "4. Tests", "4. Tests", "{8F9036B1-5106-4C69-B2D2-B78EE52687A0}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Lykke.Job.TradeVolumes", "src\Lykke.Job.TradeVolumes\Lykke.Job.TradeVolumes.csproj", "{DB790ADE-1FCF-4934-9684-028D21FF819B}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -59,6 +61,10 @@ Global
 		{A61FFDEE-5725-4650-A788-6E55EE5EFD5B}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A61FFDEE-5725-4650-A788-6E55EE5EFD5B}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A61FFDEE-5725-4650-A788-6E55EE5EFD5B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DB790ADE-1FCF-4934-9684-028D21FF819B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DB790ADE-1FCF-4934-9684-028D21FF819B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DB790ADE-1FCF-4934-9684-028D21FF819B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DB790ADE-1FCF-4934-9684-028D21FF819B}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 using Lykke.Common;
 using Microsoft.AspNetCore.Hosting;
 
-namespace Lykke.Service.TradeVolumes
+namespace Lykke.Job.TradeVolumes
 {
     internal sealed class Program
     {
@@ -30,9 +30,9 @@ namespace Lykke.Service.TradeVolumes
 #if !DEBUG
                 hostBuilder = hostBuilder.UseApplicationInsights();
 #endif
-                var host = hostBuilder.Build();
+                var webHost = hostBuilder.Build();
 
-                await host.RunAsync();
+                await webHost.RunAsync();
             }
             catch (Exception ex)
             {
@@ -46,11 +46,11 @@ namespace Lykke.Service.TradeVolumes
                 Console.WriteLine($"Process will be terminated in {delay}. Press any key to terminate immediately.");
 
                 await Task.WhenAny(
-                               Task.Delay(delay),
-                               Task.Run(() =>
-                               {
-                                   Console.ReadKey(true);
-                               }));
+                    Task.Delay(delay),
+                    Task.Run(() =>
+                    {
+                        Console.ReadKey(true);
+                    }));
             }
 
             Console.WriteLine("Terminated");

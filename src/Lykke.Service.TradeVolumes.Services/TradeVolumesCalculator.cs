@@ -1,10 +1,10 @@
 ﻿using System;
 using System.Linq;
 using System.Collections.Generic;
-using System.Collections.Concurrent;
 using System.Threading.Tasks;
 using Common;
 using Common.Log;
+using Lykke.Common.Log;
 using Lykke.Job.TradesConverter.Contract;
 using Lykke.Service.TradeVolumes.Core;
 using Lykke.Service.TradeVolumes.Core.Services;
@@ -12,38 +12,28 @@ using Lykke.Service.TradeVolumes.Core.Repositories;
 
 namespace Lykke.Service.TradeVolumes.Services
 {
-    public class TradeVolumesCalculator : TimerPeriod, ITradeVolumesCalculator
+    public class TradeVolumesCalculator : ITradeVolumesCalculator
     {
         private readonly IAssetsDictionary _assetsDictionary;
         private readonly ITradeVolumesRepository _tradeVolumesRepository;
         private readonly ILog _log;
         private readonly ICachesManager _cachesManager;
-        private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, (List<string>, DateTime)>> _tradesDict =
-            new ConcurrentDictionary<string, ConcurrentDictionary<string, (List<string>, DateTime)>>();
         private readonly TimeSpan _warningDelay;
-        private readonly int _cacheWarningCount;
-        private readonly TimeSpan _cacheTimeout;
 
         private DateTime? _lastProcessedDate;
-        private DateTime _lastWarningTime = DateTime.MinValue;
 
         public TradeVolumesCalculator(
             IAssetsDictionary assetsDictionary,
             ICachesManager cachesManager,
             ITradeVolumesRepository tradeVolumesRepository,
-            TimeSpan warningDelay,
-            TimeSpan cacheTimeout,
-            int cacheWarningCount,
-            ILog log)
-            : base((int)cacheTimeout.TotalMilliseconds, log)
+            TimeSpan? warningDelay,
+            ILogFactory logFactory)
         {
             _assetsDictionary = assetsDictionary;
             _tradeVolumesRepository = tradeVolumesRepository;
-            _log = log;
+            _log = logFactory.CreateLog(this);
             _cachesManager = cachesManager;
-            _warningDelay = warningDelay;
-            _cacheWarningCount = cacheWarningCount;
-            _cacheTimeout = cacheTimeout;
+            _warningDelay = warningDelay ?? TimeSpan.FromMinutes(60);
         }
 
         public async Task AddTradeLogItemsAsync(List<TradeLogItem> items)
@@ -57,12 +47,16 @@ namespace Lykke.Service.TradeVolumes.Services
             var byHour = items.GroupBy(i => i.DateTime.Hour);
             foreach (var hourGroup in byHour)
             {
+                var processedItemsDict = new Dictionary<string, string>();
                 var byAsset = hourGroup.GroupBy(i => i.Asset);
                 foreach (var assetGroup in byAsset)
                 {
                     var byOppositeAsset = assetGroup.GroupBy(i => i.OppositeAsset);
                     foreach (var oppositeAssetGroup in byOppositeAsset)
                     {
+                        var assetPairId = await _assetsDictionary.GetAssetPairIdAsync(assetGroup.Key, oppositeAssetGroup.Key);
+                        var (baseAssetId, _) = await _assetsDictionary.GetAssetIdsAsync(assetPairId);
+
                         var groupTime = oppositeAssetGroup.Max(i => i.DateTime);
                         var usersHash = new HashSet<string>(items.Count);
                         var walletsHash = new HashSet<string>(items.Count);
@@ -70,24 +64,32 @@ namespace Lykke.Service.TradeVolumes.Services
                         {
                             usersHash.Add(item.UserId);
                             walletsHash.Add(item.WalletId);
+
+                            if (processedItemsDict.ContainsKey(item.TradeId) && processedItemsDict[item.TradeId] == item.WalletId) //to avoid double counting
+                                continue;
+
+                            await UpdateCachedVolumesAsync(
+                                assetPairId,
+                                assetGroup.Key,
+                                oppositeAssetGroup.Key,
+                                baseAssetId == assetGroup.Key,
+                                item.UserId,
+                                item.WalletId,
+                                item.TradeId,
+                                groupTime,
+                                baseAssetId == assetGroup.Key
+                                    ? ((double)item.Volume, (double)item.OppositeVolume)
+                                    : ((double)item.OppositeVolume, (double)item.Volume));
+
+                            processedItemsDict[item.TradeId] = item.WalletId;
                         }
 
-                        var volumesDict = await _tradeVolumesRepository.GetUserWalletsTradeVolumesAsync(
+                        var volumesDict = await GetCurrentVolumesAsync(
                             groupTime,
                             usersHash,
                             walletsHash,
-                            assetGroup.Key,
-                            oppositeAssetGroup.Key);
-
-                        foreach (var item in oppositeAssetGroup)
-                        {
-                            await ProcessItemAsync(
-                                item,
-                                assetGroup.Key,
-                                oppositeAssetGroup.Key,
-                                volumesDict,
-                                items);
-                        }
+                            assetPairId,
+                            baseAssetId == assetGroup.Key);
 
                         await _tradeVolumesRepository.NotThreadSafeTradeVolumesUpdateAsync(
                             groupTime,
@@ -115,55 +117,12 @@ namespace Lykke.Service.TradeVolumes.Services
             if (_lastProcessedDate.HasValue)
             {
                 var missingDelay = dateTime.Subtract(_lastProcessedDate.Value);
-                var now = DateTime.UtcNow;
-                if (missingDelay >= _warningDelay && now.Subtract(_lastWarningTime).TotalMinutes >= 1)
-                {
-                    _log.WriteWarning(
-                        nameof(TradeVolumesCalculator),
-                        nameof(AddTradeLogItemsAsync),
-                        $"Tradelog items are missing for {missingDelay.TotalMinutes} minutes");
-                    _lastWarningTime = now;
-                }
+                if (missingDelay >= _warningDelay)
+                    _log.Warning($"Tradelog items are missing for {missingDelay.TotalMinutes} minutes");
             }
 
             if (!_lastProcessedDate.HasValue || dateTime > _lastProcessedDate.Value)
                 _lastProcessedDate = dateTime;
-        }
-
-        public override Task Execute()
-        {
-            var now = DateTime.UtcNow;
-
-            var tradesToRemove = new List<string>();
-            var tradeIds = new List<string>(_tradesDict.Keys);
-            foreach (var tradeId in tradeIds)
-            {
-                if (!_tradesDict.TryGetValue(tradeId, out var tradeInfo))
-                    continue;
-
-                var usersToRemove = new List<string>();
-                var tradeUsers = new List<string>(tradeInfo.Keys);
-                foreach (var tradeUser in tradeUsers)
-                {
-                    if (!tradeInfo.TryGetValue(tradeUser, out var userTradesInfo))
-                        continue;
-
-                    if (now.Subtract(userTradesInfo.Item2) >= _cacheTimeout)
-                        usersToRemove.Add(tradeUser);
-                }
-                foreach (var user in usersToRemove)
-                {
-                    tradeInfo.TryRemove(user, out _);
-                }
-                if (tradeInfo.Count == 0)
-                    tradesToRemove.Add(tradeId);
-            }
-            foreach (var tradeId in tradesToRemove)
-            {
-                _tradesDict.TryRemove(tradeId, out _);
-            }
-
-            return Task.CompletedTask;
         }
 
         public async Task<(double, double)> GetPeriodAssetPairVolumeAsync(
@@ -173,42 +132,52 @@ namespace Lykke.Service.TradeVolumes.Services
             DateTime to,
             bool isUser)
         {
-            var lastProcessedDate = _lastProcessedDate.HasValue
-                ? _lastProcessedDate.Value.RoundToHour()
-                 : DateTime.UtcNow.RoundToHour();
+            var lastProcessedDate = _lastProcessedDate?.RoundToHour() ?? DateTime.UtcNow.RoundToHour();
             if (lastProcessedDate < to)
                 to = lastProcessedDate.AddHours(1);
 
-            if (clientId != Constants.AllClients
-                && to.Subtract(from).TotalDays <= Constants.MaxPeriodInDays
-                && _cachesManager.TryGetAssetPairTradeVolume(
-                    clientId,
+            double baseResult = 0;
+            double quotingReult = 0;
+            if (clientId != Constants.AllClients)
+            {
+                var cachedFrom = await _cachesManager.GetFirstCachedHourAsync(
                     assetPairId,
+                    clientId,
                     from,
                     to,
-                    out (double, double) cachedResult))
-                return cachedResult;
+                    isUser);
+                if (cachedFrom < to)
+                {
+                    var cachedVolumes = await _cachesManager.GetAssetPairTradeVolumeAsync(
+                        assetPairId,
+                        clientId,
+                        cachedFrom,
+                        to,
+                        isUser);
+                    if (cachedVolumes.Item1.HasValue && cachedVolumes.Item2.HasValue)
+                    {
+                        baseResult += cachedVolumes.Item1.Value;
+                        quotingReult += cachedVolumes.Item2.Value;
+                        to = cachedFrom;
+                    }
+                }
+            }
 
-            (string baseAssetId, string quotingAssetId) = await _assetsDictionary.GetAssetIdsAsync(assetPairId);
-            (double baseVolume, double quotingVolume) = await _tradeVolumesRepository.GetPeriodClientVolumeAsync(
-                baseAssetId,
-                quotingAssetId,
-                clientId,
-                from,
-                to,
-                isUser);
-            var result = (baseVolume, quotingVolume);
-
-            if (clientId != Constants.AllClients
-                && to.Subtract(from).TotalDays <= Constants.MaxPeriodInDays)
-                _cachesManager.AddAssetPairTradeVolume(
+            if (to > from)
+            {
+                var (baseAssetId, quotingAssetId) = await _assetsDictionary.GetAssetIdsAsync(assetPairId);
+                var (baseVolume, quotingVolume) = await _tradeVolumesRepository.GetPeriodClientVolumeAsync(
+                    baseAssetId,
+                    quotingAssetId,
                     clientId,
-                    assetPairId,
                     from,
                     to,
-                    result);
+                    isUser);
+                baseResult += baseVolume;
+                quotingReult += quotingVolume;
+            }
 
-            return result;
+            return (baseResult, quotingReult);
         }
 
         public async Task<double> GetPeriodAssetVolumeAsync(
@@ -218,21 +187,9 @@ namespace Lykke.Service.TradeVolumes.Services
             DateTime to,
             bool isUser)
         {
-            var lastProcessedDate = _lastProcessedDate.HasValue
-                ? _lastProcessedDate.Value.RoundToHour()
-                 : DateTime.UtcNow.RoundToHour();
+            var lastProcessedDate = _lastProcessedDate?.RoundToHour() ?? DateTime.UtcNow.RoundToHour();
             if (lastProcessedDate < to)
                 to = lastProcessedDate.AddHours(1);
-
-            if (clientId != Constants.AllClients
-                && to.Subtract(from).TotalDays <= Constants.MaxPeriodInDays
-                && _cachesManager.TryGetAssetTradeVolume(
-                    clientId,
-                    assetId,
-                    from,
-                    to,
-                    out double cachedResult))
-                return cachedResult;
 
             (double result, _) = await _tradeVolumesRepository.GetPeriodClientVolumeAsync(
                 assetId,
@@ -242,162 +199,126 @@ namespace Lykke.Service.TradeVolumes.Services
                 to,
                 isUser);
 
-            if (clientId != Constants.AllClients
-                && to.Subtract(from).TotalDays <= Constants.MaxPeriodInDays)
-                _cachesManager.AddAssetTradeVolume(
-                    clientId,
-                    assetId,
-                    from,
-                    to,
-                    result);
-
             return result;
         }
 
-        private async Task UpdateVolumesCacheAsync(
+        private async Task UpdateCachedVolumesAsync(
+            string assetPairId,
             string assetId,
             string oppositeAssetId,
-            string clientId,
-            DateTime time,
-            double baseVolume,
-            double quotingVolume)
+            bool isBaseAsset,
+            string userId,
+            string walletId,
+            string tradeId,
+            DateTime timestamp,
+            (double, double) tradeVolumes)
         {
-            _cachesManager.UpdateAssetTradeVolume(
-                clientId,
-                assetId,
-                time,
-                baseVolume);
-
-            var assetPairId = await _assetsDictionary.GetAssetPairIdAsync(assetId, oppositeAssetId);
-            (string baseAssetId, string quotingAssetId) = await _assetsDictionary.GetAssetIdsAsync(assetPairId);
-            if (assetId != baseAssetId)
-                return;
-
-            _cachesManager.UpdateAssetPairTradeVolume(
-                    clientId,
+            var hourStart = timestamp.RoundToHour();
+            if (timestamp > hourStart)
+            {
+                var cachedVolumes = await _cachesManager.GetAssetPairTradeVolumeAsync(
                     assetPairId,
-                    time,
-                    (baseVolume, quotingVolume));
-        }
+                    userId,
+                    hourStart,
+                    timestamp,
+                    true);
+                if (!cachedVolumes.Item1.HasValue || !cachedVolumes.Item2.HasValue)
+                {
+                    var hourVolumes = await _tradeVolumesRepository.GetPeriodClientVolumeAsync(
+                        isBaseAsset ? assetId : oppositeAssetId,
+                        isBaseAsset ? oppositeAssetId : assetPairId,
+                        userId,
+                        hourStart,
+                        timestamp,
+                        true);
+                    await _cachesManager.AddAssetPairTradeVolumeAsync(
+                        assetPairId,
+                        assetId,
+                        userId,
+                        walletId,
+                        $"CacheWarmupBefore-{tradeId}",
+                        timestamp.AddTicks(-1),
+                        hourVolumes);
+                }
 
-        private async Task ProcessItemAsync(
-            TradeLogItem item,
-            string assetId,
-            string oppositeAssetId,
-            Dictionary<string, double[]> volumesDict,
-            List<TradeLogItem> items)
-        {
-            var userVolumes = volumesDict[_tradeVolumesRepository.GetUserVolumeKey(item.UserId)];
-            bool doNotUseTradesCache = items.Any(i =>
-                i != item && i.TradeId == item.TradeId && i.Asset == item.Asset && i.UserId != item.UserId);
-
-            if (doNotUseTradesCache)
-            {
-                userVolumes[0] += (double)item.Volume;
-                userVolumes[1] += item.OppositeVolume.HasValue ? (double)item.OppositeVolume.Value : 0;
-                await UpdateVolumesCacheAsync(
-                    assetId,
-                    oppositeAssetId,
-                    item.UserId,
-                    item.DateTime,
-                    (double)item.Volume,
-                    item.OppositeVolume.HasValue ? (double)item.OppositeVolume.Value : 0);
+                cachedVolumes = await _cachesManager.GetAssetPairTradeVolumeAsync(
+                    assetPairId,
+                    walletId,
+                    hourStart,
+                    timestamp,
+                    false);
+                if (!cachedVolumes.Item1.HasValue || !cachedVolumes.Item2.HasValue)
+                {
+                    var hourVolumes = await _tradeVolumesRepository.GetPeriodClientVolumeAsync(
+                        isBaseAsset ? assetId : oppositeAssetId,
+                        isBaseAsset ? oppositeAssetId : assetPairId,
+                        walletId,
+                        hourStart,
+                        timestamp,
+                        false);
+                    await _cachesManager.AddAssetPairTradeVolumeAsync(
+                        assetPairId,
+                        assetId,
+                        userId,
+                        walletId,
+                        $"CacheWarmupBefore-{tradeId}",
+                        timestamp.AddTicks(-1),
+                        hourVolumes);
+                }
             }
-            else
-            {
-                await UpdateTradesCacheAsync(
-                    item,
-                    assetId,
-                    oppositeAssetId,
-                    userVolumes);
-            }
 
-            var walletVolumes = volumesDict[_tradeVolumesRepository.GetWalletVolumeKey(item.WalletId)];
-            walletVolumes[0] += (double)item.Volume;
-            walletVolumes[1] += item.OppositeVolume.HasValue ? (double)item.OppositeVolume.Value : 0;
-
-            await UpdateVolumesCacheAsync(
+            await _cachesManager.AddAssetPairTradeVolumeAsync(
+                assetPairId,
                 assetId,
-                oppositeAssetId,
-                item.WalletId,
-                item.DateTime,
-                (double)item.Volume,
-                item.OppositeVolume.HasValue ? (double)item.OppositeVolume.Value : 0);
+                userId,
+                walletId,
+                tradeId,
+                timestamp,
+                tradeVolumes);
         }
 
-        private async Task UpdateTradesCacheAsync(
-            TradeLogItem item,
-            string assetId,
-            string oppositeAssetId,
-            double[] userVolumes)
+        public async Task<Dictionary<string, double[]>> GetCurrentVolumesAsync(
+            DateTime timestamp,
+            ICollection<string> userIds,
+            ICollection<string> walletIds,
+            string assetPairId,
+            bool isBaseAsset)
         {
-            if (!_tradesDict.ContainsKey(item.TradeId)
-                || !_tradesDict[item.TradeId].ContainsKey(item.UserId)
-                || !_tradesDict[item.TradeId][item.UserId].Item1.Contains(item.Asset))
-            {
-                userVolumes[0] += (double)item.Volume;
-                userVolumes[1] += item.OppositeVolume.HasValue ? (double)item.OppositeVolume.Value : 0;
-                await UpdateVolumesCacheAsync(
-                    assetId,
-                    oppositeAssetId,
-                    item.UserId,
-                    item.DateTime,
-                    (double)item.Volume,
-                    item.OppositeVolume.HasValue ? (double)item.OppositeVolume.Value : 0);
-                if (_tradesDict.ContainsKey(item.TradeId))
-                {
-                    var usersDataDict = _tradesDict[item.TradeId];
-                    if (!usersDataDict.ContainsKey(item.UserId))
-                        usersDataDict.TryAdd(item.UserId, (new List<string>(2) { item.Asset }, DateTime.UtcNow));
-                    else
-                        usersDataDict[item.UserId].Item1.Add(item.Asset);
-                }
-                else
-                {
-                    var usersDataDict = new ConcurrentDictionary<string, (List<string>, DateTime)>();
-                    usersDataDict.TryAdd(item.UserId, (new List<string>(2) { item.Asset }, DateTime.UtcNow));
-                    _tradesDict.TryAdd(item.TradeId, usersDataDict);
+            var result = new Dictionary<string, double[]>(userIds.Count + walletIds.Count);
+            var hourStart = timestamp.RoundToHour();
+            var hourEnd = hourStart.AddHours(1);
 
-                    if (_tradesDict.Count > _cacheWarningCount)
-                    {
-                        var now = DateTime.UtcNow;
-                        if (now.Subtract(_lastWarningTime).TotalMinutes >= 1)
-                        {
-                            _log.WriteWarning(
-                                nameof(TradeVolumesCalculator),
-                                nameof(AddTradeLogItemsAsync),
-                                $"Tradelog items cache has {_tradesDict.Count} items!");
-                            _lastWarningTime = now;
-                        }
-                    }
-                }
-            }
-            else
+            foreach (var userId in userIds)
             {
-                userVolumes[0] -= (double)item.Volume;
-                userVolumes[1] -= item.OppositeVolume.HasValue ? (double)item.OppositeVolume.Value : 0;
-                await UpdateVolumesCacheAsync(
-                    assetId,
-                    oppositeAssetId,
-                    item.UserId,
-                    item.DateTime,
-                    (double)-item.Volume,
-                    item.OppositeVolume.HasValue ? (double)-item.OppositeVolume.Value : 0);
-
-                var tradeUsersData = _tradesDict[item.TradeId];
-                var tradeAssets = tradeUsersData[item.UserId].Item1;
-                if (tradeAssets.Count == 1)
-                {
-                    if (tradeUsersData.Count == 1)
-                        _tradesDict.TryRemove(item.TradeId, out _);
-                    else
-                        tradeUsersData.TryRemove(item.UserId, out _);
-                }
-                else
-                {
-                    tradeAssets.Remove(item.Asset);
-                }
+                var userVolumes = await GetPeriodAssetPairVolumeAsync(
+                    assetPairId,
+                    userId,
+                    hourStart,
+                    hourEnd,
+                    true);
+                if (userVolumes.Item1 == 0 || userVolumes.Item2 == 0)
+                    _log.WriteWarning(nameof(GetCurrentVolumesAsync), userVolumes, $"Got 0 volumes for pair {assetPairId} on user {userId} at {timestamp}");
+                result[_tradeVolumesRepository.GetUserVolumeKey(userId)] = isBaseAsset
+                    ? new[] { userVolumes.Item1, userVolumes.Item2 }
+                    : new[] { userVolumes.Item2, userVolumes.Item1 };
             }
+
+            foreach (var walletId in walletIds)
+            {
+                var walletVolumes = await GetPeriodAssetPairVolumeAsync(
+                    assetPairId,
+                    walletId,
+                    hourStart,
+                    hourEnd,
+                    false);
+                if (walletVolumes.Item1 == 0 || walletVolumes.Item2 == 0)
+                    _log.WriteWarning(nameof(GetCurrentVolumesAsync), walletVolumes, $"Got 0 volumes for pair {assetPairId} on wallet {walletId} at {timestamp}");
+                result[_tradeVolumesRepository.GetWalletVolumeKey(walletId)] = isBaseAsset
+                    ? new[] { walletVolumes.Item1, walletVolumes.Item2 }
+                    : new[] { walletVolumes.Item2, walletVolumes.Item1 };
+            }
+
+            return result;
         }
     }
 }

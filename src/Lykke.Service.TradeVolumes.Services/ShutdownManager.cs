@@ -1,18 +1,18 @@
-﻿using Common;
-using Lykke.Service.TradeVolumes.Core.Services;
-using System.Collections.Generic;
-using System.Linq;
+﻿using System.Collections.Generic;
 using System.Threading.Tasks;
+using Common;
+using Lykke.Sdk;
+using Lykke.Service.TradeVolumes.Core.Services;
 
 namespace Lykke.Service.TradeVolumes.Services
 {
     public class ShutdownManager : IShutdownManager
     {
-        private readonly List<IStopable> _stopables;
+        private readonly List<IStopable> _stopables = new List<IStopable>();
 
-        public ShutdownManager(IEnumerable<IStopable> stopables)
+        public ShutdownManager(IEnumerable<IStartStop> stopables)
         {
-            _stopables = stopables.ToList();
+            _stopables.AddRange(stopables);
         }
 
         public Task StopAsync()

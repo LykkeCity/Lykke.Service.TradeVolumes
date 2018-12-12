@@ -1,42 +1,29 @@
 ﻿using System;
+using System.Threading.Tasks;
 
 namespace Lykke.Service.TradeVolumes.Core.Services
 {
     public interface ICachesManager
     {
-        bool TryGetAssetTradeVolume(
-            string clientId,
-            string assetId,
-            DateTime from,
-            DateTime to,
-            out double result);
-        void AddAssetTradeVolume(
-            string clientId,
-            string assetId,
-            DateTime from,
-            DateTime to,
-            double tradeVolume);
-        void UpdateAssetTradeVolume(
-            string clientId,
-            string assetId,
-            DateTime time,
-            double tradeVolume);
-        bool TryGetAssetPairTradeVolume(
-            string clientId,
+        Task<(double?, double?)> GetAssetPairTradeVolumeAsync(
             string assetPairId,
+            string clientId,
             DateTime from,
             DateTime to,
-            out (double, double) result);
-        void AddAssetPairTradeVolume(
-            string clientId,
+            bool isUser);
+        Task AddAssetPairTradeVolumeAsync(
             string assetPairId,
-            DateTime from,
-            DateTime to,
-            (double, double) tradeVolumes);
-        void UpdateAssetPairTradeVolume(
-            string clientId,
-            string assetPairId,
+            string assetId,
+            string userId,
+            string walletId,
+            string tradeId,
             DateTime time,
             (double, double) tradeVolumes);
+        Task<DateTime> GetFirstCachedHourAsync(
+            string assetPairId,
+            string clientId,
+            DateTime from,
+            DateTime to,
+            bool isUser);
     }
 }

@@ -22,5 +22,12 @@ namespace Lykke.Service.TradeVolumes.Core.Services
             DateTime from,
             DateTime to,
             bool isUser);
+
+        Task<Dictionary<string, double[]>> GetCurrentVolumesAsync(
+            DateTime timestamp,
+            ICollection<string> userIds,
+            ICollection<string> walletIds,
+            string assetPairId,
+            bool isBaseAsset);
     }
 }

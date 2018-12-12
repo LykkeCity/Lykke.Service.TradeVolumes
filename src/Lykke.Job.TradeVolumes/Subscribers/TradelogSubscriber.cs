@@ -1,20 +1,19 @@
-﻿using Autofac;
-using Common;
+﻿using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 using Common.Log;
+using Lykke.Common.Log;
 using Lykke.RabbitMqBroker;
 using Lykke.RabbitMqBroker.Subscriber;
 using Lykke.Job.TradesConverter.Contract;
 using Lykke.Service.TradeVolumes.Core.Services;
-using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
 
-namespace Lykke.Service.TradeVolumes.Subscribers
+namespace Lykke.Job.TradeVolumes.Subscribers
 {
-    internal class TradelogSubscriber : IStartable, IStopable
+    internal class TradelogSubscriber : IStartStop
     {
+        private readonly ILogFactory _logFactory;
         private readonly ILog _log;
-        private readonly IConsole _console;
         private readonly string _connectionString;
         private readonly string _exchangeName;
         private readonly ITradeVolumesCalculator _tradeVolumesCalculator;
@@ -23,14 +22,13 @@ namespace Lykke.Service.TradeVolumes.Subscribers
 
         public TradelogSubscriber(
             ITradeVolumesCalculator tradeVolumesCalculator,
-            ILog log,
-            IConsole console,
+            ILogFactory logFactory,
             string connectionString,
             string exchangeName)
         {
             _tradeVolumesCalculator = tradeVolumesCalculator;
-            _log = log;
-            _console = console;
+            _logFactory = logFactory;
+            _log = logFactory.CreateLog(this);
             _connectionString = connectionString;
             _exchangeName = exchangeName;
         }
@@ -38,19 +36,21 @@ namespace Lykke.Service.TradeVolumes.Subscribers
         public void Start()
         {
             var settings = RabbitMqSubscriptionSettings
-                .CreateForSubscriber(_connectionString, _exchangeName, "tradevolumes")
+                .ForSubscriber(_connectionString, _exchangeName, "tradevolumes")
                 .MakeDurable();
 
-            _subscriber = new RabbitMqSubscriber<List<TradeLogItem>>(settings,
-                    new ResilientErrorHandlingStrategy(_log, settings,
+            _subscriber = new RabbitMqSubscriber<List<TradeLogItem>>(
+                    _logFactory,
+                    settings,
+                    new ResilientErrorHandlingStrategy(
+                        _logFactory,
+                        settings,
                         retryTimeout: TimeSpan.FromSeconds(10),
-                        next: new DeadQueueErrorHandlingStrategy(_log, settings)))
+                        next: new DeadQueueErrorHandlingStrategy(_logFactory, settings)))
                 .SetMessageDeserializer(new MessagePackMessageDeserializer<List<TradeLogItem>>())
                 .SetMessageReadStrategy(new MessageReadQueueStrategy())
                 .Subscribe(ProcessMessageAsync)
                 .CreateDefaultBinding()
-                .SetLogger(_log)
-                .SetConsole(_console)
                 .Start();
         }
 
@@ -62,7 +62,7 @@ namespace Lykke.Service.TradeVolumes.Subscribers
             }
             catch (Exception ex)
             {
-                _log.WriteError("TradelogSubscriber.ProcessMessageAsync", arg, ex);
+                _log.Error(ex, context: arg);
                 throw;
             }
         }

@@ -1,31 +1,34 @@
 ﻿using System;
 using Autofac;
+using Lykke.Job.TradeVolumes.Settings;
+using Lykke.Job.TradeVolumes.Subscribers;
 using Lykke.Sdk;
 using Lykke.Sdk.Health;
-using Lykke.SettingsReader;
 using Lykke.Service.Assets.Client;
-using Lykke.Service.TradeVolumes.Core.Services;
-using Lykke.Service.TradeVolumes.Core.Repositories;
-using Lykke.Service.TradeVolumes.Services;
 using Lykke.Service.TradeVolumes.AzureRepositories;
-using Lykke.Service.TradeVolumes.Settings;
+using Lykke.Service.TradeVolumes.Core.Repositories;
+using Lykke.Service.TradeVolumes.Core.Services;
+using Lykke.Service.TradeVolumes.Services;
+using Lykke.SettingsReader;
 using StackExchange.Redis;
 
-namespace Lykke.Service.TradeVolumes.Modules
+namespace Lykke.Job.TradeVolumes.Modules
 {
-    public class ServiceModule : Module
+    public class JobModule : Module
     {
-        private readonly IReloadingManager<AppSettings> _settingsManager;
-        private readonly AppSettings _settings;
+        private readonly AppSettings _appSettings;
+        private readonly IReloadingManager<TradeVolumesJobSettings> _settingsManager;
 
-        public ServiceModule(IReloadingManager<AppSettings> settingsManager)
+        public JobModule(AppSettings appSettings, IReloadingManager<TradeVolumesJobSettings> settingsManager)
         {
+            _appSettings = appSettings;
             _settingsManager = settingsManager;
-            _settings = settingsManager.CurrentValue;
         }
 
         protected override void Load(ContainerBuilder builder)
         {
+            var settings = _appSettings.TradeVolumesJob;
+
             builder.RegisterType<HealthService>()
                 .As<IHealthService>()
                 .SingleInstance();
@@ -39,12 +42,12 @@ namespace Lykke.Service.TradeVolumes.Modules
                 .AutoActivate()
                 .SingleInstance();
 
-            builder.Register(context => ConnectionMultiplexer.Connect(_settings.TradeVolumesService.RedisConnString))
+            builder.Register(context => ConnectionMultiplexer.Connect(settings.RedisConnString))
                 .As<IConnectionMultiplexer>()
                 .SingleInstance();
 
             builder.RegisterType<AssetsService>()
-                .WithParameter(TypedParameter.From(new Uri(_settings.AssetsServiceClient.ServiceUrl)))
+                .WithParameter(TypedParameter.From(new Uri(_appSettings.AssetsServiceClient.ServiceUrl)))
                 .As<IAssetsService>()
                 .SingleInstance();
 
@@ -57,14 +60,20 @@ namespace Lykke.Service.TradeVolumes.Modules
                 .SingleInstance();
 
             builder.RegisterType<TradeVolumesRepository>()
-                .WithParameter(TypedParameter.From(_settingsManager.Nested(x => x.TradeVolumesService.TradeVolumesConnString)))
+                .WithParameter(TypedParameter.From(_settingsManager.Nested(x => x.Db.TradeVolumesConnString)))
                 .As<ITradeVolumesRepository>()
                 .SingleInstance();
 
             builder.RegisterType<TradeVolumesCalculator>()
                 .As<ITradeVolumesCalculator>()
                 .SingleInstance()
-                .WithParameter("warningDelay", null);
+                .WithParameter("warningDelay", TimeSpan.FromHours(1));
+
+            builder.RegisterType<TradelogSubscriber>()
+                .As<IStartStop>()
+                .SingleInstance()
+                .WithParameter("connectionString", settings.Rabbit.ConnectionString)
+                .WithParameter("exchangeName", settings.Rabbit.ExchangeName);
         }
     }
 }
