@@ -79,6 +79,17 @@ namespace Lykke.Service.TradeVolumes.Services
                 }
             }
 
+            var pairs = await _assetsService.AssetPairGetAllAsync();
+            foreach (var assetPair in pairs)
+            {
+                if ((assetPair.BaseAssetId != asset1 || assetPair.QuotingAssetId != asset2) &&
+                    (assetPair.BaseAssetId != asset2 || assetPair.QuotingAssetId != asset1))
+                    continue;
+
+                string pairId = $"{asset1}{asset2}";
+                _pairsDict.TryAdd(pairId, assetPair);
+            }
+
             throw new UnknownPairException($"Unknown pair of assets: {asset1} and {asset2}!");
         }
 

@@ -14,7 +14,6 @@ namespace Lykke.Service.TradeVolumes.Subscribers
     internal class TradelogSubscriber : IStartable, IStopable
     {
         private readonly ILog _log;
-        private readonly IConsole _console;
         private readonly string _connectionString;
         private readonly string _exchangeName;
         private readonly ITradeVolumesCalculator _tradeVolumesCalculator;
@@ -24,13 +23,11 @@ namespace Lykke.Service.TradeVolumes.Subscribers
         public TradelogSubscriber(
             ITradeVolumesCalculator tradeVolumesCalculator,
             ILog log,
-            IConsole console,
             string connectionString,
             string exchangeName)
         {
             _tradeVolumesCalculator = tradeVolumesCalculator;
             _log = log;
-            _console = console;
             _connectionString = connectionString;
             _exchangeName = exchangeName;
         }
@@ -38,7 +35,7 @@ namespace Lykke.Service.TradeVolumes.Subscribers
         public void Start()
         {
             var settings = RabbitMqSubscriptionSettings
-                .CreateForSubscriber(_connectionString, _exchangeName, "tradevolumes")
+                .ForSubscriber(_connectionString, _exchangeName, "tradevolumes")
                 .MakeDurable();
 
             _subscriber = new RabbitMqSubscriber<List<TradeLogItem>>(settings,
@@ -50,7 +47,6 @@ namespace Lykke.Service.TradeVolumes.Subscribers
                 .Subscribe(ProcessMessageAsync)
                 .CreateDefaultBinding()
                 .SetLogger(_log)
-                .SetConsole(_console)
                 .Start();
         }
 
