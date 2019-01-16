@@ -46,10 +46,7 @@ namespace Lykke.Job.TradeVolumes.Modules
                 .As<IConnectionMultiplexer>()
                 .SingleInstance();
 
-            builder.RegisterType<AssetsService>()
-                .WithParameter(TypedParameter.From(new Uri(_appSettings.AssetsServiceClient.ServiceUrl)))
-                .As<IAssetsService>()
-                .SingleInstance();
+            builder.RegisterAssetsClient(_appSettings.AssetsServiceClient.ServiceUrl);
 
             builder.RegisterType<CachesManager>()
                 .As<ICachesManager>()
