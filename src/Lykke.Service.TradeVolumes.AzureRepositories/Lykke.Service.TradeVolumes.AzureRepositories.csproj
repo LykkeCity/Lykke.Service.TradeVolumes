@@ -4,7 +4,15 @@
     <AssemblyName>Lykke.Service.TradeVolumes.AzureRepositories</AssemblyName>
     <RootNamespace>Lykke.Service.TradeVolumes.AzureRepositories</RootNamespace>
     <Version>1.0.0</Version>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
   </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0" PrivateAssets="All" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="Lykke.AzureStorage" Version="8.10.0" />
   </ItemGroup>
