@@ -140,7 +140,7 @@ namespace Lykke.Service.TradeVolumes.Services
                         sb.Append(c);
                     }
                 }
-                else if (c >= 'A' && c <= 'Z' || c > 'a' && <= 'z') 
+                else if (c >= 'A' && c <= 'Z' || c >= 'a' && <= 'z') 
                 {
                     sb.Append(c);
                 }
