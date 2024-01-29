@@ -155,6 +155,8 @@ namespace Lykke.Service.TradeVolumes.Services
             {
                 throw new InvalidOperationException($"Cleaned up value [{result}] is shorter than 3 characters. Original value [{name}]");
             }
+
+            return result;
         }
     }
 }
