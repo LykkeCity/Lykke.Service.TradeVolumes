@@ -5,6 +5,9 @@ using Lykke.Service.Assets.Client;
 using Lykke.Service.Assets.Client.Models;
 using Lykke.Service.TradeVolumes.Core;
 using Lykke.Service.TradeVolumes.Core.Services;
+using Common;
+using System;
+using System.Text;
 
 namespace Lykke.Service.TradeVolumes.Services
 {
@@ -114,7 +117,44 @@ namespace Lykke.Service.TradeVolumes.Services
 
         private string CleanupNameForTable(string name)
         {
-            return name.Replace(" ", "").Replace("_", "").Replace("-", "").ToUpper();
+            // Table name constraints:
+            // https://learn.microsoft.com/en-us/rest/api/storageservices/Understanding-the-Table-Service-Data-Model#table-names
+            
+            if (name.Length < 3)
+            {
+                throw new InvalidOperationException($"Value to clean up should be 3 character long at least: [{name}]");
+            }
+
+            var sb = new StringBuilder();
+
+            foreach (var c in name)
+            {
+                // Limits max length up to 31 instead of 63 because of prefix that will be added later
+                if(sb.Length >= 31)
+                {
+                    break;
+                }
+
+                if (c.IsDigit())
+                {
+                    // First character can't be a digit
+                    if (sb.Length != 0)
+                    {
+                        sb.Append(c);
+                    }
+                }
+                else if (c >= 'A' && c <= 'Z' || c >= 'a' && <= 'z') 
+                {
+                    sb.Append(c);
+                }
+            }
+
+            var result = sb.ToString().ToUpperInvariant();
+
+            if (result.Length < 3)
+            {
+                throw new InvalidOperationException($"Cleaned up value [{result}] is shorter than 3 characters. Original value [{name}]");
+            }
         }
     }
 }
