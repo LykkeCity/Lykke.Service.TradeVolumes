@@ -287,21 +287,29 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
 
         private async Task<List<string>> GetTableNamesAsync(string assetId)
         {
-            string assetName = await _assetsDictionary.GetShortNameAsync(assetId);
-            string tablesPrefix = string.Format(Constants.TableNamesPrefix, assetName);
-            TableContinuationToken token = null;
-            var result = new List<string>();
-            do
+            try
             {
-                var response = await _tableClient.ListTablesSegmentedAsync(tablesPrefix, token);
-                token = response.ContinuationToken;
-                foreach (var table in response.Results)
+                string assetName = await _assetsDictionary.GetShortNameAsync(assetId);
+                string tablesPrefix = string.Format(Constants.TableNamesPrefix, assetName);
+                TableContinuationToken token = null;
+                var result = new List<string>();
+                do
                 {
-                    result.Add(table.Name);
+                    var response = await _tableClient.ListTablesSegmentedAsync(tablesPrefix, token);
+                    token = response.ContinuationToken;
+                    foreach (var table in response.Results)
+                    {
+                        result.Add(table.Name);
+                    }
                 }
+                while (token != null);
+                return result;
+
+            } 
+            catch(Exception ex) 
+            {
+                throw new InvalidOperationException($"Failed to get table names for the asset ID: [{assetId}]", ex);
             }
-            while (token != null);
-            return result;
         }
 
         private async Task<INoSQLTableStorage<TradeVolumeEntity>> GetStorageAsync(string baseAssetId, string quotingAssetId)
