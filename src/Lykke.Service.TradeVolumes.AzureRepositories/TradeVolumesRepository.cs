@@ -307,12 +307,22 @@ namespace Lykke.Service.TradeVolumes.AzureRepositories
         {
             baseAssetId = await _assetsDictionary.GetShortNameAsync(baseAssetId);
             quotingAssetId = await _assetsDictionary.GetShortNameAsync(quotingAssetId);
-            string tableName = string.Format(Constants.TableNameFormat, baseAssetId, quotingAssetId);
-            if (_azureTables.TryGetValue(tableName, out var storage))
-                return storage;
-            var result = AzureTableStorage<TradeVolumeEntity>.Create(_connectionStringManager, tableName, _logFactory, _timeout);
-            _azureTables.TryAdd(tableName, result);
-            return result;
+
+            var tableName = string.Format(Constants.TableNameFormat, baseAssetId, quotingAssetId);
+            
+            try
+            {
+                if (_azureTables.TryGetValue(tableName, out var storage))
+                    return storage;
+                var result = AzureTableStorage<TradeVolumeEntity>.Create(_connectionStringManager, tableName, _logFactory, _timeout);
+                _azureTables.TryAdd(tableName, result);
+
+                return result;
+            }
+            catch (Exception ex) 
+            {
+                throw new InvalidOperationException($"Failed to get storage for [{baseAssetId}] and [{quotingAssetId}]. Table name: [{tableName}]", ex);
+            }            
         }
     }
 }
